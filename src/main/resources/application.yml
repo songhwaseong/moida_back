@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: moida-backend
+  profiles:
+    active: local
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/moida?useSSL=false&useUnicode=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    username: root
+    password: 1234
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: update      # 변경분만 반영 (운영: validate)
+    show-sql: false         # SQL 로그 보고 싶을 때 true 로 변경
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 100
+    open-in-view: false
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: Asia/Seoul
+
+server:
+  port: 9000
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET:moida-super-secret-key-must-be-at-least-32-bytes-long-please-change-in-production}
+  access-token-validity: 3600000          # 1시간 (ms)
+  refresh-token-validity: 1209600000      # 14일 (ms)
+
+# CORS 허용 origin (프론트 dev 서버)
+cors:
+  allowed-origins:
+    - http://localhost:5173
+    - http://localhost:3000
+    - http://localhost:4173
+
+logging:
+  level:
+    org.hibernate.SQL: info        # SQL 디버깅 시 debug 로 변경
+    org.hibernate.orm.jdbc.bind: info
+    com.moida: debug
