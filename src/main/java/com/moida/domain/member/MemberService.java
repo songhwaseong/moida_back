@@ -33,6 +33,7 @@ public class MemberService {
                 .format(DateTimeFormatter.ofPattern("yyyyMMdd"))
                 + String.format("%05d", memberRepository.count() + 1);
 
+
         Member member = Member.builder()
                 .memberNo(memberNo)
                 .email(dto.getEmail())
