@@ -37,6 +37,7 @@ out/
 ### Generated ###
 src/main/generated/
 /build/
+/.gradle/
 
 ### application properties (local) ###
 application-local.yml
