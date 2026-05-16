@@ -23,6 +23,7 @@ out/
 !**/src/main/**/out/
 !**/src/test/**/out/
 
+
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/
@@ -35,6 +36,7 @@ out/
 
 ### Generated ###
 src/main/generated/
+/build/
 
 ### application properties (local) ###
 application-local.yml
