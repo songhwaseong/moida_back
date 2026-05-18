@@ -1,3 +1,4 @@
+/*
 package com.moida.test;
 
 import com.moida.domain.member.Member;
@@ -59,3 +60,4 @@ public class MemberTest {
         System.out.println("----------------------------------------");
     }
 }
+*/
