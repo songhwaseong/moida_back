@@ -73,7 +73,8 @@ public class Product extends BaseTimeEntity {
     @Column(name = "like_count", nullable = false)
     private Long likeCount;
 
-    @Column(name = "main_image_url", length = 500)
+    @Lob
+    @Column(name = "main_image_url", columnDefinition = "LONGTEXT")
     private String mainImageUrl;
 
     @Column(name = "auction_scheduled_at")

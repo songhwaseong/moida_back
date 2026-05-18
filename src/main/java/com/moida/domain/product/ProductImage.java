@@ -23,7 +23,8 @@ public class ProductImage extends BaseTimeEntity {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Column(nullable = false, length = 500)
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String url;
 
     @Column(name = "display_order", nullable = false)
