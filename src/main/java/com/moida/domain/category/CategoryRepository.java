@@ -7,6 +7,6 @@ import java.util.Optional;
 
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
-    List<Category> findAllByIsActiveTrueOrderByDisplayOrderAsc();
+    List<Category> findAllByIsActiveTrueOrderByDisplayOrderAscIdAsc();
     Optional<Category> findByNameAndIsActiveTrue(String name);
 }
