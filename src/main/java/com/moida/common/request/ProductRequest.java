@@ -1,52 +1,34 @@
 package com.moida.common.request;
 
-import com.moida.domain.product.ProductType;
 import com.moida.domain.product.ProductCondition;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 @Getter
 @NoArgsConstructor
 public class ProductRequest {
 
-    // ── 공통 필드 ──
-    private String name;           // 상품명
-    private String description;    // 상품 설명
-    private String category;       // 카테고리 이름 (예: "패션/의류")
-    private String condition;      // 상품 상태: S / A / B / C
-    private String type;           // 거래 타입: AUCTION / TRADE
-    private Long price;            // 경매: 시작가 / 중고거래: 판매가
-    private String location;       // 거래 희망 지역
-    private String image;          // 대표 이미지 Base64 문자열
+    private String name;
+    private String description;
+    private String category;
+    private String condition;
+    private Long price;
+    private String location;
+    private String image;
+    private List<String> images;
+    private Integer mainImageIndex;
+    private Long buyNowPrice;
+    private Long minBidUnit;
 
-    // ── 경매(AUCTION) 전용 필드 ──
-    private Long buyNowPrice;      // 즉시낙찰가 (선택)
-    private Long minBidUnit;       // 최소 호가 단위
-
-    // ── 중고거래(TRADE) 전용 필드 ──
-    private String tradeMethod;         // 직거래 / 택배 / 둘다
-    private Boolean isPriceNegotiable;  // 가격 협의 여부
-
-    // ── 편의 메서드 ──
-
-    // "AUCTION" 문자열 → ProductType enum 변환
-    public ProductType toProductType() {
-        return ProductType.valueOf(this.type);
-    }
-
-    // "S" / "A" / "B" / "C" → ProductCondition enum 변환
-    // 프론트에서 "S급", "A급" 형태로 오므로 "급" 제거 후 변환
     public ProductCondition toProductCondition() {
-        String cleaned = this.condition.replace("급", "").trim(); // "S급" → "S"
-        return ProductCondition.valueOf(cleaned);
-    }
+        if (this.condition == null || this.condition.isBlank()) {
+            throw new IllegalArgumentException("Product condition is required.");
+        }
 
-
-    public boolean isAuction() {
-        return "AUCTION".equals(this.type);
-    }
-
-    public boolean isTrade() {
-        return "TRADE".equals(this.type);
+        // Frontend labels can arrive as "S급"/"A급"; the enum stores only S/A/B/C.
+        String code = this.condition.trim().toUpperCase().substring(0, 1);
+        return ProductCondition.valueOf(code);
     }
 }
