@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/moida?useSSL=false&useUnicode=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:1234}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+cors:
+  allowed-origins:
+    - http://localhost:5173
+    - http://localhost:3000
+    - http://localhost:4173
+
+logging:
+  level:
+    com.moida: debug

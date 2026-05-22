@@ -40,6 +40,5 @@ src/main/generated/
 /.gradle/
 
 ### application properties (local) ###
-application-local.yml
 application-local.properties
 .env

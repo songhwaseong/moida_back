@@ -98,6 +98,7 @@ jobs:
               --restart unless-stopped \
               -p 9000:9000 \
               -e SPRING_PROFILES_ACTIVE=prod \
+              -e INSTANCE_NAME=moida-backend-ec2-1 \
               -e DB_URL="${{ secrets.DB_URL }}" \
               -e DB_USERNAME="${{ secrets.DB_USERNAME }}" \
               -e DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
@@ -109,6 +110,15 @@ jobs:
 
             sleep 10
             test -n "$(docker ps -q --filter "name=^/${{ env.CONTAINER_NAME }}$" --filter "status=running")"
+            HEALTH_OK=""
+            for i in $(seq 1 12); do
+              if curl -fsS http://localhost:9000/api/public/health; then
+                HEALTH_OK="1"
+                break
+              fi
+              sleep 5
+            done
+            test "$HEALTH_OK" = "1"
 
             if [ -s "$CURRENT_FILE" ]; then
               cp "$CURRENT_FILE" "$PREVIOUS_FILE"
@@ -147,6 +157,7 @@ jobs:
               --restart unless-stopped \
               -p 9000:9000 \
               -e SPRING_PROFILES_ACTIVE=prod \
+              -e INSTANCE_NAME=moida-backend-ec2-2 \
               -e DB_URL="${{ secrets.DB_URL }}" \
               -e DB_USERNAME="${{ secrets.DB_USERNAME }}" \
               -e DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
@@ -158,10 +169,53 @@ jobs:
 
             sleep 10
             test -n "$(docker ps -q --filter "name=^/${{ env.CONTAINER_NAME }}$" --filter "status=running")"
+            HEALTH_OK=""
+            for i in $(seq 1 12); do
+              if curl -fsS http://localhost:9000/api/public/health; then
+                HEALTH_OK="1"
+                break
+              fi
+              sleep 5
+            done
+            test "$HEALTH_OK" = "1"
 
             if [ -s "$CURRENT_FILE" ]; then
               cp "$CURRENT_FILE" "$PREVIOUS_FILE"
             fi
             echo "$IMAGE" > "$CURRENT_FILE"
             docker image prune -f
+
+  notify-discord:
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy-ec2-1, deploy-ec2-2]
+    if: always()
+
+    steps:
+      - name: Notify Discord on CD success
+        if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL is not set. Skipping Discord notification."
+            exit 0
+          fi
+
+          curl -fsS -H "Content-Type: application/json" \
+            -d "{\"content\":\"[MOIDA Backend] CD succeeded\nRepository: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nImage: ${{ env.IMAGE_NAME }}:${{ github.sha }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "$DISCORD_WEBHOOK_URL"
+
+      - name: Notify Discord on CD failure
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL is not set. Skipping Discord notification."
+            exit 0
+          fi
+
+          curl -fsS -H "Content-Type: application/json" \
+            -d "{\"content\":\"[MOIDA Backend] CD failed\nRepository: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "$DISCORD_WEBHOOK_URL"
 
