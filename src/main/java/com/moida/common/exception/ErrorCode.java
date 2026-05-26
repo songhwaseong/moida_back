@@ -34,7 +34,19 @@ public enum ErrorCode {
     AUCTION_ALREADY_ENDED(HttpStatus.BAD_REQUEST, "AC002", "이미 종료된 경매입니다."),
     INVALID_BID_AMOUNT(HttpStatus.BAD_REQUEST, "AC003", "입찰 금액이 유효하지 않습니다."),
     INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "AC004", "잔액이 부족합니다."),
-    SELF_BID_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "AC005", "본인 상품에는 입찰할 수 없습니다.");
+    SELF_BID_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "AC005", "본인 상품에는 입찰할 수 없습니다."),
+
+    // Wallet 관련 에러 코드
+    /** 등록된 출금 계좌를 찾을 수 없는 경우 */
+    WALLET_ACCOUNT_NOT_FOUND(HttpStatus.BAD_REQUEST, "W001", "등록된 출금 계좌가 없습니다."),
+    /** 입출금 금액이 유효하지 않은 경우 (예: 최소 금액 미만) */
+    INVALID_WALLET_AMOUNT(HttpStatus.BAD_REQUEST, "W002", "금액이 유효하지 않습니다."),
+    /** 지갑 잔액이 부족하여 출금할 수 없는 경우 */
+    WALLET_INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "W003", "잔액이 부족합니다."),
+    /** 지갑 거래 내역을 찾을 수 없는 경우 */
+    WALLET_TRANSACTION_NOT_FOUND(HttpStatus.NOT_FOUND, "W004", "지갑 거래 내역을 찾을 수 없습니다."),
+    /** 지갑 거래 내역을 현재 상태에서 처리할 수 없는 경우 */
+    INVALID_WALLET_TRANSACTION(HttpStatus.BAD_REQUEST, "W005", "처리할 수 없는 지갑 거래입니다.");
 
     private final HttpStatus status;
     private final String code;
