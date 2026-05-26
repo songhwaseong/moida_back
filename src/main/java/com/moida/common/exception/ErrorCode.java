@@ -42,7 +42,11 @@ public enum ErrorCode {
     /** 입출금 금액이 유효하지 않은 경우 (예: 최소 금액 미만) */
     INVALID_WALLET_AMOUNT(HttpStatus.BAD_REQUEST, "W002", "금액이 유효하지 않습니다."),
     /** 지갑 잔액이 부족하여 출금할 수 없는 경우 */
-    WALLET_INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "W003", "잔액이 부족합니다.");
+    WALLET_INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "W003", "잔액이 부족합니다."),
+    /** 지갑 거래 내역을 찾을 수 없는 경우 */
+    WALLET_TRANSACTION_NOT_FOUND(HttpStatus.NOT_FOUND, "W004", "지갑 거래 내역을 찾을 수 없습니다."),
+    /** 지갑 거래 내역을 현재 상태에서 처리할 수 없는 경우 */
+    INVALID_WALLET_TRANSACTION(HttpStatus.BAD_REQUEST, "W005", "처리할 수 없는 지갑 거래입니다.");
 
     private final HttpStatus status;
     private final String code;

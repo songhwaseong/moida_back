@@ -1,6 +1,8 @@
 package com.moida.domain.wallet;
 
 import com.moida.common.entity.BaseTimeEntity;
+import com.moida.common.exception.BusinessException;
+import com.moida.common.exception.ErrorCode;
 import com.moida.domain.member.Member;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -76,5 +78,49 @@ public class WalletTransaction extends BaseTimeEntity {
         this.status = status;
         this.amount = amount;
         this.description = description;
+    }
+
+    /**
+     * 가상계좌 입금 확인이 끝난 PENDING 입금 거래를 완료 처리합니다.
+     */
+    public void completeDeposit() {
+        if (type != TransactionType.DEPOSIT || status != TransactionStatus.PENDING) {
+            throw new BusinessException(ErrorCode.INVALID_WALLET_TRANSACTION);
+        }
+        this.status = TransactionStatus.COMPLETED;
+        this.description = "가상계좌 입금 완료";
+    }
+
+    /**
+     * 출금 처리가 끝난 PENDING 출금 거래를 완료 처리합니다.
+     */
+    public void completeWithdrawal() {
+        if (type != TransactionType.WITHDRAW || status != TransactionStatus.PENDING) {
+            throw new BusinessException(ErrorCode.INVALID_WALLET_TRANSACTION);
+        }
+        this.status = TransactionStatus.COMPLETED;
+        this.description = "출금 처리 완료";
+    }
+
+    /**
+     * 아직 처리되지 않은 입금 거래를 취소합니다.
+     */
+    public void cancelDeposit() {
+        if (type != TransactionType.DEPOSIT || status != TransactionStatus.PENDING) {
+            throw new BusinessException(ErrorCode.INVALID_WALLET_TRANSACTION);
+        }
+        this.status = TransactionStatus.CANCELED;
+        this.description = "가상계좌 입금 요청 취소";
+    }
+
+    /**
+     * 아직 처리되지 않은 출금 거래를 취소합니다.
+     */
+    public void cancelWithdrawal() {
+        if (type != TransactionType.WITHDRAW || status != TransactionStatus.PENDING) {
+            throw new BusinessException(ErrorCode.INVALID_WALLET_TRANSACTION);
+        }
+        this.status = TransactionStatus.CANCELED;
+        this.description = "출금 신청 취소";
     }
 }

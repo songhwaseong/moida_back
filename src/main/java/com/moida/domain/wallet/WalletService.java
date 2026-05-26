@@ -4,6 +4,7 @@ import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
 import com.moida.common.request.BankAccountRequest;
 import com.moida.common.request.WalletAmountRequest;
+import com.moida.common.response.AdminWalletTransactionResponse;
 import com.moida.common.response.WalletResponse;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
@@ -25,6 +26,8 @@ public class WalletService {
     private static final long MIN_AMOUNT = 1000L;
     /** 조회할 최근 거래 내역 최대 개수 */
     private static final int RECENT_TRANSACTION_LIMIT = 50;
+    /** 관리자 지갑 요청 조회 최대 개수 */
+    private static final int MAX_ADMIN_TRANSACTION_SIZE = 200;
 
     private final MemberRepository memberRepository;
     private final MemberBankAccountRepository accountRepository;
@@ -118,11 +121,108 @@ public class WalletService {
     }
 
     /**
+     * 가상계좌 송금 확인이 끝난 입금 요청을 완료 처리하고 회원 잔액에 반영합니다.
+     */
+    @Transactional
+    public WalletResponse confirmDeposit(Long transactionId) {
+        WalletTransaction transaction = transactionRepository.findByIdForUpdate(transactionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_TRANSACTION_NOT_FOUND));
+        validatePendingTransaction(transaction, WalletTransaction.TransactionType.DEPOSIT);
+        Member member = memberRepository.findByIdForUpdate(transaction.getMember().getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        member.chargeBalance(transaction.getAmount());
+        transaction.completeDeposit();
+
+        return buildWalletResponse(member);
+    }
+
+    /**
+     * 출금 처리가 끝난 출금 요청을 완료 처리하고 회원 잔액에서 차감합니다.
+     */
+    @Transactional
+    public WalletResponse confirmWithdrawal(Long transactionId) {
+        WalletTransaction transaction = transactionRepository.findByIdForUpdate(transactionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_TRANSACTION_NOT_FOUND));
+        validatePendingTransaction(transaction, WalletTransaction.TransactionType.WITHDRAW);
+        Member member = memberRepository.findByIdForUpdate(transaction.getMember().getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        if (member.getBalance() < transaction.getAmount()) {
+            throw new BusinessException(ErrorCode.WALLET_INSUFFICIENT_BALANCE);
+        }
+
+        member.deductBalance(transaction.getAmount());
+        transaction.completeWithdrawal();
+
+        return buildWalletResponse(member);
+    }
+
+    /**
+     * 아직 처리되지 않은 입금 요청을 취소합니다.
+     */
+    @Transactional
+    public WalletResponse cancelDeposit(Long transactionId) {
+        WalletTransaction transaction = transactionRepository.findByIdForUpdate(transactionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_TRANSACTION_NOT_FOUND));
+        validatePendingTransaction(transaction, WalletTransaction.TransactionType.DEPOSIT);
+
+        transaction.cancelDeposit();
+
+        return buildWalletResponse(transaction.getMember());
+    }
+
+    /**
+     * 아직 처리되지 않은 출금 요청을 취소합니다.
+     */
+    @Transactional
+    public WalletResponse cancelWithdrawal(Long transactionId) {
+        WalletTransaction transaction = transactionRepository.findByIdForUpdate(transactionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_TRANSACTION_NOT_FOUND));
+        validatePendingTransaction(transaction, WalletTransaction.TransactionType.WITHDRAW);
+
+        transaction.cancelWithdrawal();
+
+        return buildWalletResponse(transaction.getMember());
+    }
+
+    /**
+     * 관리자 화면에서 입출금 요청 목록을 조회합니다.
+     */
+    @Transactional(readOnly = true)
+    public List<AdminWalletTransactionResponse> getAdminTransactions(
+            WalletTransaction.TransactionType type,
+            WalletTransaction.TransactionStatus status,
+            int size
+    ) {
+        if (size < 1 || size > MAX_ADMIN_TRANSACTION_SIZE) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+
+        return transactionRepository.searchForAdmin(type, status, PageRequest.of(0, size)).stream()
+                .map(transaction -> AdminWalletTransactionResponse.of(
+                        transaction,
+                        transaction.getType() == WalletTransaction.TransactionType.WITHDRAW
+                                ? accountRepository.findByMemberId(transaction.getMember().getId()).orElse(null)
+                                : null
+                ))
+                .toList();
+    }
+
+    /**
      * 요청 금액이 유효한지(null이 아니고 최소 금액 이상인지) 검증합니다.
      */
     private void validateAmount(Long amount) {
         if (amount == null || amount < MIN_AMOUNT) {
             throw new BusinessException(ErrorCode.INVALID_WALLET_AMOUNT);
+        }
+    }
+
+    /**
+     * 주어진 거래가 기대 타입의 PENDING 거래인지 검증합니다.
+     */
+    private void validatePendingTransaction(WalletTransaction transaction, WalletTransaction.TransactionType type) {
+        if (transaction.getType() != type || transaction.getStatus() != WalletTransaction.TransactionStatus.PENDING) {
+            throw new BusinessException(ErrorCode.INVALID_WALLET_TRANSACTION);
         }
     }
 
