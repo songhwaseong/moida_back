@@ -40,3 +40,15 @@ logging:
     org.hibernate.SQL: info
     org.hibernate.orm.jdbc.bind: info
     com.moida: debug
+social:
+  kakao:
+    client-id: ${KAKAO_CLIENT_ID}
+    redirect-uri: ${KAKAO_REDIRECT_URI}
+  naver:
+    client-id: ${NAVER_CLIENT_ID}
+    client-secret: ${NAVER_CLIENT_SECRET}
+    redirect-uri: ${NAVER_REDIRECT_URI}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID}
+    client-secret: ${GOOGLE_CLIENT_SECRET}
+    redirect-uri: ${GOOGLE_REDIRECT_URI}
