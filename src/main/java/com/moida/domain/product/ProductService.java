@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -133,7 +134,7 @@ public class ProductService {
         // 상태 전이가 한쪽만 진행된 불일치 데이터(예: 스케줄러 누락)가 노출되지 않도록 2차 검증한다.
         boolean liveOnly = productStatus == ProductStatus.LIVE;
 
-        return products.stream()
+        List<ProductSummaryResponse> responses = products.stream()
                 .filter(product -> {
                     if (!liveOnly) return true;
                     Auction auction = auctionsByProductId.get(product.getId());
@@ -141,6 +142,9 @@ public class ProductService {
                 })
                 .map(product -> ProductSummaryResponse.from(product, auctionsByProductId.get(product.getId())))
                 .toList();
+
+        // 가격 정렬은 currentPrice 가 채워진 뒤(=DTO 변환 이후) 적용해야 정확하다.
+        return applyPriceSortIfNeeded(responses, sort);
     }
 
     // 상품 상세 조회.
@@ -173,6 +177,8 @@ public class ProductService {
     }
 
     // 인기 정렬은 viewCount 우선 + 같은 값일 때 id 역순(최근 등록 우선)으로 결정적 정렬을 보장.
+    // 가격 정렬(price_asc / price_desc)은 경매의 현재 입찰가(currentPrice) 기준이어야 하므로
+    // DB 정렬은 기본값(createdAt DESC)으로 두고, 결과를 만든 뒤 Java 단계에서 재정렬한다.
     // 그 외(또는 null)는 최신 등록순(createdAt DESC) 기본값.
     private Sort resolveSort(String sort) {
         String normalized = normalizeBlank(sort);
@@ -181,7 +187,37 @@ public class ProductService {
             return Sort.by(Sort.Direction.DESC, "viewCount")
                     .and(Sort.by(Sort.Direction.DESC, "id"));
         }
+        if (isPriceSort(normalized)) {
+            // price 정렬은 후처리에서 적용하므로 DB 단계에서는 기본 정렬을 쓴다.
+            return Sort.by(Sort.Direction.DESC, "createdAt");
+        }
         throw new BusinessException(ErrorCode.INVALID_INPUT, "Invalid sort key.");
+    }
+
+    // 가격 정렬 키 여부 판별 (대소문자 무시).
+    private boolean isPriceSort(String sort) {
+        return "price_asc".equalsIgnoreCase(sort) || "price_desc".equalsIgnoreCase(sort);
+    }
+
+    // 카드에 표시되는 가격(=auction.currentPrice, 없으면 product.price)을 기준으로 정렬한다.
+    // size <= 100 클램프 덕분에 인메모리 정렬 비용은 무시 가능하다.
+    private List<ProductSummaryResponse> applyPriceSortIfNeeded(
+            List<ProductSummaryResponse> items, String sort
+    ) {
+        if (!isPriceSort(sort)) return items;
+        boolean asc = "price_asc".equalsIgnoreCase(sort);
+        Comparator<ProductSummaryResponse> byDisplayedPrice = Comparator.comparingLong(item -> {
+            Long current = item.currentPrice();
+            return current != null ? current : (item.price() != null ? item.price() : 0L);
+        });
+        if (!asc) byDisplayedPrice = byDisplayedPrice.reversed();
+        // 같은 가격일 때는 id 역순(최근 등록 우선)으로 결정적 순서를 보장한다.
+        Comparator<ProductSummaryResponse> tiebreaker = Comparator
+                .comparingLong(ProductSummaryResponse::id)
+                .reversed();
+        return items.stream()
+                .sorted(byDisplayedPrice.thenComparing(tiebreaker))
+                .toList();
     }
 
     private ProductStatus parseProductStatus(String status) {
