@@ -42,13 +42,13 @@ logging:
     com.moida: debug
 social:
   kakao:
-    client-id: ${KAKAO_CLIENT_ID:mock-kakao-client-id}
-    redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:3000/login/oauth2/code/kakao}
+    client-id: ${KAKAO_CLIENT_ID}
+    redirect-uri: ${KAKAO_REDIRECT_URI}
   naver:
-    client-id: ${NAVER_CLIENT_ID:mock-naver-client-id}
-    client-secret: ${NAVER_CLIENT_SECRET:mock-naver-client-secret}
-    redirect-uri: ${NAVER_REDIRECT_URI:http://localhost:3000/login/oauth2/code/naver}
+    client-id: ${NAVER_CLIENT_ID}
+    client-secret: ${NAVER_CLIENT_SECRET}
+    redirect-uri: ${NAVER_REDIRECT_URI}
   google:
-    client-id: ${GOOGLE_CLIENT_ID:mock-google-client-id}
-    client-secret: ${GOOGLE_CLIENT_SECRET:mock-google-client-secret}
-    redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:3000/login/oauth2/code/google}
+    client-id: ${GOOGLE_CLIENT_ID}
+    client-secret: ${GOOGLE_CLIENT_SECRET}
+    redirect-uri: ${GOOGLE_REDIRECT_URI}

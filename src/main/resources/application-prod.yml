@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://dbmoida.czmwck6mces8.ap-northeast-2.rds.amazonaws.com:3306/moida?useSSL=false&useUnicode=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:moidadb}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+cors:
+  allowed-origins:
+    - ${FRONTEND_ORIGIN}
+
+logging:
+  level:
+    com.moida: info

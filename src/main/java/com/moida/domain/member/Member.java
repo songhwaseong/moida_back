@@ -87,9 +87,12 @@ public class Member extends BaseTimeEntity {
     @Column(name = "withdrawn_at")
     private LocalDateTime withdrawnAt;
 
+    @Column(name = "social_login", length = 20)
+    private String socialLogin; // 소셜 로그인 구분값 ("KAKAO" / "NAVER" / "GOOGLE" / null이면 일반 가입)
+
     @Builder
     private Member(String memberNo, String email, String password, String name, String phone,
-                   String profileImageUrl, String location, MemberRole role) {
+                   String profileImageUrl, String location, MemberRole role, String socialLogin) {// 소셜 로그인 구분값 추가
         this.memberNo = memberNo;
         this.email = email;
         this.password = password;
@@ -106,6 +109,7 @@ public class Member extends BaseTimeEntity {
         this.sanctionCount = 0;
         this.role = role != null ? role : MemberRole.USER;
         this.status = MemberStatus.ACTIVE;
+        this.socialLogin = socialLogin; // 소셜 로그인 구분값 초기화
     }
 
     // ===== Domain Methods =====
