@@ -24,6 +24,7 @@ public enum ErrorCode {
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "M002", "이미 사용 중인 이메일입니다."),
     INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "M003", "비밀번호가 일치하지 않습니다."),
     SUSPENDED_MEMBER(HttpStatus.FORBIDDEN, "M004", "정지된 계정입니다."),
+    ADDRESS_NOT_FOUND(HttpStatus.NOT_FOUND, "M005", "주소를 찾을 수 없습니다."),
 
     // Product
     PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "상품을 찾을 수 없습니다."),
