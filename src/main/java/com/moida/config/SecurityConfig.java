@@ -73,7 +73,9 @@ public class SecurityConfig {
                                 "/api/banners/**"
                         ).permitAll()
                         // 관리자 전용
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/members/*/role").hasRole("ADMIN")
+                        // 매니저, 관리자 전용
+                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "MANAGER")
                         // 그 외 인증 필요
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

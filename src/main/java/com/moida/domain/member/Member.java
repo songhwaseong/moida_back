@@ -167,4 +167,8 @@ public class Member extends BaseTimeEntity {
     public boolean isActive() {
         return this.status == MemberStatus.ACTIVE;
     }
+    // 관리자가 특정 회원의 역할을 변경할 때 사용
+    public void updateRole(MemberRole role) {
+        this.role = role;
+    }
 }
