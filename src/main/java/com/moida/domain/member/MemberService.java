@@ -2,9 +2,13 @@ package com.moida.domain.member;
 
 import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
+import com.moida.common.request.DeactivateAccountRequest;
 import com.moida.common.request.SignupRequest;
+import com.moida.common.response.AccountDeactivationInfoResponse;
+import com.moida.common.response.AdminDeactivatedMemberResponse;
+import com.moida.domain.wallet.WalletTransaction;
+import com.moida.domain.wallet.WalletTransactionRepository;
 import jakarta.transaction.Transactional;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,8 +23,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MemberService {
 
+    private static final String SOCIAL_ACCOUNT_CONFIRMATION_TEXT = "회원탈퇴";
+
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
+    private final WalletTransactionRepository walletTransactionRepository;
 
     public Optional<Member> findByEmail(String email) {
         return memberRepository.findByEmail(email);
@@ -67,6 +74,76 @@ public class MemberService {
         // 회원 조회 후 역할 변경 (더티 체킹으로 자동 저장)
         Member member = findById(id);
         member.updateRole(role);
+    }
+
+    public AccountDeactivationInfoResponse getAccountDeactivationInfo(Long memberId) {
+        return AccountDeactivationInfoResponse.from(findById(memberId), SOCIAL_ACCOUNT_CONFIRMATION_TEXT);
+    }
+
+    @Transactional
+    public void deactivateMemberAccount(Long memberId, DeactivateAccountRequest request) {
+        Member member = memberRepository.findByIdForUpdate(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        DeactivateAccountRequest safeRequest = request != null
+                ? request
+                : new DeactivateAccountRequest(null, null, null, null);
+
+        // 정산/출금 여지가 남은 계정은 탈퇴를 막는다.
+        if (!member.isActive()) {
+            throw new BusinessException(ErrorCode.ACCOUNT_DEACTIVATION_BLOCKED, "이미 탈퇴했거나 이용할 수 없는 계정입니다.");
+        }
+        if (member.getBalance() != null && member.getBalance() > 0) {
+            throw new BusinessException(ErrorCode.ACCOUNT_DEACTIVATION_BLOCKED, "예치금 잔액이 남아 있어 탈퇴할 수 없습니다.");
+        }
+        if (walletTransactionRepository.existsByMemberIdAndStatus(memberId, WalletTransaction.TransactionStatus.PENDING)) {
+            throw new BusinessException(ErrorCode.ACCOUNT_DEACTIVATION_BLOCKED, "처리 대기 중인 지갑 요청이 있어 탈퇴할 수 없습니다.");
+        }
+        validateAccountDeactivationAuth(member, safeRequest);
+        String reasonCode = requireReasonCode(safeRequest.reasonCode());
+        String reasonDetail = normalizeOptionalText(safeRequest.reasonDetail(), 500);
+
+        // 개인정보는 즉시 삭제하지 않고 탈퇴 상태로만 전환한다.
+        member.deactivateAccount(reasonCode, reasonDetail);
+    }
+
+    public List<AdminDeactivatedMemberResponse> findDeactivatedMembers() {
+        return memberRepository.findAllByStatusOrderByWithdrawnAtDesc(MemberStatus.WITHDRAWN).stream()
+                .map(AdminDeactivatedMemberResponse::from)
+                .toList();
+    }
+
+    private void validateAccountDeactivationAuth(Member member, DeactivateAccountRequest request) {
+        if (member.getSocialLogin() == null || member.getSocialLogin().isBlank()) {
+            String password = normalizeOptionalText(request.password(), 255);
+            if (password == null) {
+                throw new BusinessException(ErrorCode.INVALID_PASSWORD, "현재 비밀번호를 입력해주세요.");
+            }
+            if (!passwordEncoder.matches(password, member.getPassword())) {
+                throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+            }
+            return;
+        }
+
+        String confirmationText = normalizeOptionalText(request.confirmationText(), 50);
+        if (!SOCIAL_ACCOUNT_CONFIRMATION_TEXT.equals(confirmationText)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "확인 문구를 정확히 입력해주세요.");
+        }
+    }
+
+    private String requireReasonCode(String value) {
+        String reasonCode = normalizeOptionalText(value, 50);
+        if (reasonCode == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "탈퇴 사유를 선택해주세요.");
+        }
+        return reasonCode;
+    }
+
+    private String normalizeOptionalText(String value, int maxLength) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.length() > maxLength ? normalized.substring(0, maxLength) : normalized;
     }
 
 }

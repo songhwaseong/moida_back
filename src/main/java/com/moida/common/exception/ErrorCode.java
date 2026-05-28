@@ -25,6 +25,8 @@ public enum ErrorCode {
     INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "M003", "비밀번호가 일치하지 않습니다."),
     SUSPENDED_MEMBER(HttpStatus.FORBIDDEN, "M004", "정지된 계정입니다."),
     ADDRESS_NOT_FOUND(HttpStatus.NOT_FOUND, "M005", "주소를 찾을 수 없습니다."),
+    ACCOUNT_DEACTIVATION_BLOCKED(HttpStatus.BAD_REQUEST, "M006", "탈퇴할 수 없는 계정 상태입니다."),
+    MEMBER_ACCOUNT_INACTIVE(HttpStatus.FORBIDDEN, "M007", "이용할 수 없는 계정입니다."),
 
     // Product
     PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "상품을 찾을 수 없습니다."),

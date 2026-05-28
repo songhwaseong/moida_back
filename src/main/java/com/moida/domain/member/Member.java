@@ -87,6 +87,12 @@ public class Member extends BaseTimeEntity {
     @Column(name = "withdrawn_at")
     private LocalDateTime withdrawnAt;
 
+    @Column(name = "deactivation_reason_code", length = 50)
+    private String deactivationReasonCode;
+
+    @Column(name = "deactivation_reason_detail", length = 500)
+    private String deactivationReasonDetail;
+
     @Column(name = "social_login", length = 20)
     private String socialLogin; // 소셜 로그인 구분값 ("KAKAO" / "NAVER" / "GOOGLE" / null이면 일반 가입)
 
@@ -154,9 +160,11 @@ public class Member extends BaseTimeEntity {
         this.sanctionCount++;
     }
 
-    public void withdraw() {
+    public void deactivateAccount(String reasonCode, String reasonDetail) {
         this.status = MemberStatus.WITHDRAWN;
         this.withdrawnAt = LocalDateTime.now();
+        this.deactivationReasonCode = reasonCode;
+        this.deactivationReasonDetail = reasonDetail;
     }
 
     public void activate() {
