@@ -27,6 +27,8 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
     @Query("select wt from WalletTransaction wt join fetch wt.member where wt.id = :id")
     Optional<WalletTransaction> findByIdForUpdate(@Param("id") Long id);
 
+    boolean existsByMemberIdAndStatus(Long memberId, WalletTransaction.TransactionStatus status);
+
     /**
      * 관리자 화면에서 거래 유형과 상태를 기준으로 지갑 거래 내역을 조회합니다.
      */

@@ -1,6 +1,7 @@
 package com.moida.controller;
 
 import com.moida.common.response.ApiResponse;
+import com.moida.common.response.AdminDeactivatedMemberResponse;
 import com.moida.domain.member.MemberRole;
 import com.moida.domain.member.MemberService;
 import com.moida.common.response.AdminMemberResponse;
@@ -53,5 +54,10 @@ public class AdminController {
                 .map(AdminMemberResponse::from)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(members));
+    }
+
+    @GetMapping("/members/deactivated")
+    public ResponseEntity<ApiResponse<List<AdminDeactivatedMemberResponse>>> getDeactivatedMembers() {
+        return ResponseEntity.ok(ApiResponse.success(memberService.findDeactivatedMembers()));
     }
 }
