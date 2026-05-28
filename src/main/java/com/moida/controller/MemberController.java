@@ -45,6 +45,9 @@ public class MemberController {
 
         Member member = memberService.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        if (!member.isActive()) {
+            throw new BusinessException(ErrorCode.MEMBER_ACCOUNT_INACTIVE);
+        }
 
         String token = jwtTokenProvider.createAccessToken(
                 member.getId(), member.getEmail(), member.getRole()

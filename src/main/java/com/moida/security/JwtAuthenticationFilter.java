@@ -1,5 +1,6 @@
 package com.moida.security;
 
+import com.moida.domain.member.MemberRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,6 +22,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final MemberRepository memberRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -30,7 +32,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
             Authentication authentication = jwtTokenProvider.getAuthentication(token);
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            // 기존 토큰이어도 탈퇴/정지 회원이면 인증 컨텍스트를 세팅하지 않는다.
+            memberRepository.findById(userDetails.getMemberId())
+                    .filter(member -> member.isActive())
+                    .ifPresent(member -> SecurityContextHolder.getContext().setAuthentication(authentication));
         }
 
         filterChain.doFilter(request, response);
