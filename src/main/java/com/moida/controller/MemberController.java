@@ -89,6 +89,11 @@ public class MemberController {
         long count = memberService.countByNickname(value);
         return ResponseEntity.ok(ApiResponse.success(count));
     }
+    @GetMapping("/check-email")
+    public ResponseEntity<ApiResponse<Boolean>> checkEmail(@RequestParam String value) {
+        boolean available = !memberService.existsByEmail(value);
+        return ResponseEntity.ok(ApiResponse.success(available));
+    }
     //코드 → 토큰 → 사용자 정보 → 회원 조회/가입 → JWT 발급
     @PostMapping("/kakaoLogin")
     public ResponseEntity<ApiResponse<LoginResponse>> kakaoLogin(@RequestBody Map<String, String> params) {
