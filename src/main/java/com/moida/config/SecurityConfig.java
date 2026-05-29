@@ -70,7 +70,8 @@ public class SecurityConfig {
                                 "/api/auctions/**",
                                 "/api/categories/**",
                                 "/api/notices/**",
-                                "/api/banners/**"
+                                "/api/banners/**",
+                                "/api/faqs/**"
                         ).permitAll()
                         // 관리자 전용
                         .requestMatchers("/api/admin/members/*/role").hasRole("ADMIN")
