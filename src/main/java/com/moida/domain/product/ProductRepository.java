@@ -17,6 +17,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     Page<Product> findAllBySellerId(Long sellerId, Pageable pageable);
 
+    List<Product> findAllBySellerIdOrderByCreatedAtDesc(Long sellerId, Pageable pageable);
+
     Page<Product> findAllByTypeAndStatus(ProductType type, ProductStatus status, Pageable pageable);
 
     long countByStatus(ProductStatus status);

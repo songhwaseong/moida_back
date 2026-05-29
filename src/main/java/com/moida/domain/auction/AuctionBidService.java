@@ -4,6 +4,7 @@ import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
 import com.moida.common.request.BidRequest;
 import com.moida.common.response.BidResultResponse;
+import com.moida.common.response.MyBidResponse;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
 import com.moida.domain.product.Product;
@@ -12,8 +13,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +27,18 @@ public class AuctionBidService {
     private final AuctionRepository auctionRepository;
     private final BidRepository bidRepository;
     private final MemberRepository memberRepository;
+
+    @Transactional(readOnly = true)
+    public List<MyBidResponse> getMyBids(Long memberId) {
+        Map<Long, Bid> latestBidByAuction = new LinkedHashMap<>();
+        bidRepository.findMyBidHistory(memberId, PageRequest.of(0, 100)).forEach(bid ->
+                latestBidByAuction.putIfAbsent(bid.getAuction().getId(), bid)
+        );
+
+        return latestBidByAuction.values().stream()
+                .map(MyBidResponse::from)
+                .toList();
+    }
 
     @Transactional
     public BidResultResponse placeProductBid(Long productId, Long memberId, BidRequest request) {

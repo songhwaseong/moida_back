@@ -147,6 +147,17 @@ public class ProductService {
         return applyPriceSortIfNeeded(responses, sort);
     }
 
+    @Transactional(readOnly = true)
+    public List<ProductSummaryResponse> getMyProducts(Long memberId) {
+        List<Product> products = productRepository.findAllBySellerIdOrderByCreatedAtDesc(memberId, PageRequest.of(0, 100));
+        Map<Long, Auction> auctionsByProductId = findAuctionsByProductId(products);
+
+        return products.stream()
+                .filter(product -> product.getStatus() != ProductStatus.DELETED)
+                .map(product -> ProductSummaryResponse.from(product, auctionsByProductId.get(product.getId())))
+                .toList();
+    }
+
     // 상품 상세 조회.
     // memberId 가 주어지면(=로그인 상태) 해당 사용자의 좋아요 여부를 함께 채워
     // 상세 화면 진입 시 하트 활성 상태가 즉시 정확하게 보이도록 한다.

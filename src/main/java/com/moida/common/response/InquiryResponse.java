@@ -1,6 +1,7 @@
 package com.moida.common.response;
 
 import com.moida.domain.inquiry.Inquiry;
+import com.moida.domain.product.ProductStatus;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -12,6 +13,7 @@ public record InquiryResponse(
         String itemImage,
         String seller,
         String user,
+        String kind,
         String date,
         String question,
         String answer,
@@ -28,6 +30,7 @@ public record InquiryResponse(
                 inquiry.getProduct().getMainImageUrl(),
                 inquiry.getSeller().getName(),
                 inquiry.getUser().getName(),
+                kind(inquiry.getProduct().getStatus()),
                 format(inquiry.getCreatedAt()),
                 inquiry.getQuestion(),
                 inquiry.getAnswer(),
@@ -38,5 +41,9 @@ public record InquiryResponse(
 
     private static String format(LocalDateTime value) {
         return value == null ? null : value.format(DATE_TIME_FORMAT);
+    }
+
+    private static String kind(ProductStatus status) {
+        return status == ProductStatus.LIVE ? "auction" : "product";
     }
 }
