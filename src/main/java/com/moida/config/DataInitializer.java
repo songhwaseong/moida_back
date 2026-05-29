@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import jakarta.transaction.Transactional;
+import java.util.List;
 
 
 @Slf4j
@@ -33,9 +35,11 @@ public class DataInitializer implements CommandLineRunner {
     };
 
     @Override
+    @Transactional
     public void run(String... args) {
         createAccounts(ADMIN_ACCOUNTS, MemberRole.ADMIN, "ADMIN");
         createAccounts(MANAGER_ACCOUNTS, MemberRole.MANAGER, "MANAGER");
+        migrateNicknames();
     }
 
     private void createAccounts(String[][] accounts, MemberRole role, String prefix) {
@@ -53,6 +57,13 @@ public class DataInitializer implements CommandLineRunner {
                     .build();
             memberRepository.save(member);
             log.info("계정 생성: {} ({})", email, role);
+        }
+    }
+
+    private void migrateNicknames() {
+        List<Member> members = memberRepository.findAllByNicknameIsNull();
+        for (Member member : members) {
+            member.updateNickname(member.getName());
         }
     }
 }

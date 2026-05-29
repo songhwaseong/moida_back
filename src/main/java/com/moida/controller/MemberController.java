@@ -17,12 +17,17 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.moida.common.response.*;                 // 소셜 로그인 response
 import com.moida.domain.member.SocialLoginService;  // 소셜 로그인 서비스
 import java.util.Map;                               // 소셜 로그인 요청 파라미터 받을 때
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.security.core.Authentication;
+import com.moida.common.request.CompleteSocialProfileRequest;
 
 import java.util.stream.Collectors;
 
@@ -54,8 +59,9 @@ public class MemberController {
         );
 
         return ResponseEntity.ok(ApiResponse.success(
-                new LoginResponse(token, member)
+                new LoginResponse(token, member, false)
         ));
+
     }
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<String>> signup(
@@ -78,6 +84,11 @@ public class MemberController {
 
         return ResponseEntity.ok(ApiResponse.success("회원 가입 성공"));
     }
+    @GetMapping("/check-nickname")
+    public ResponseEntity<ApiResponse<Long>> checkNickname(@RequestParam String value) {
+        long count = memberService.countByNickname(value);
+        return ResponseEntity.ok(ApiResponse.success(count));
+    }
     //코드 → 토큰 → 사용자 정보 → 회원 조회/가입 → JWT 발급
     @PostMapping("/kakaoLogin")
     public ResponseEntity<ApiResponse<LoginResponse>> kakaoLogin(@RequestBody Map<String, String> params) {
@@ -85,6 +96,8 @@ public class MemberController {
         String accessToken = socialLoginService.getKkoAccessToken(params.get("code"));
         // 액세스 토큰으로 카카오 사용자 정보 조회
         KakaoUserResponse userInfo = socialLoginService.getKakaoUserInfo(accessToken);
+        String email = userInfo.kakaoAccount().email();
+        boolean isNewUser = !memberService.existsByEmail(email);
         // 이메일로 기존 회원 조회, 없으면 자동 가입
         // userInfo.kakaoAccount().email()로 접근
         // userInfo.kakaoAccount().profile().nickname()로 접근
@@ -95,7 +108,7 @@ public class MemberController {
         );
         // 기존 로그인과 동일하게 JWT 토큰 발급
         String token = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
-        return ResponseEntity.ok(ApiResponse.success(new LoginResponse(token, member)));
+        return ResponseEntity.ok(ApiResponse.success(new LoginResponse(token, member, isNewUser)));
     }
 
     @PostMapping("/naverLogin")
@@ -104,6 +117,8 @@ public class MemberController {
         String accessToken = socialLoginService.getNavAccessToken(params.get("code"), params.get("state"));
         // 액세스 토큰으로 네이버 사용자 정보 조회
         NaverUserResponse userInfo = socialLoginService.getNaverUserInfo(accessToken);
+        String email = userInfo.response().email();
+        boolean isNewUser = !memberService.existsByEmail(email);
         // 이메일로 기존 회원 조회, 없으면 자동 가입
         // userInfo.response()로 접근
         Member member = socialLoginService.findOrRegisterSocialMember(
@@ -112,7 +127,7 @@ public class MemberController {
                 "NAVER"
         );
         String token = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
-        return ResponseEntity.ok(ApiResponse.success(new LoginResponse(token, member)));
+        return ResponseEntity.ok(ApiResponse.success(new LoginResponse(token, member, isNewUser)));
     }
 
     @PostMapping("/googleLogin")
@@ -121,6 +136,8 @@ public class MemberController {
         String accessToken = socialLoginService.getGoogleAccessToken(params.get("code"));
         // 액세스 토큰으로 구글 사용자 정보 조회
         GoogleUserResponse userInfo = socialLoginService.getGoogleUserInfo(accessToken);
+        String email = userInfo.email();
+        boolean isNewUser = !memberService.existsByEmail(email);
         // 이메일로 기존 회원 조회, 없으면 자동 가입
         //userInfo로 접근
         Member member = socialLoginService.findOrRegisterSocialMember(
@@ -129,6 +146,14 @@ public class MemberController {
                 "GOOGLE"
         );
         String token = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
-        return ResponseEntity.ok(ApiResponse.success(new LoginResponse(token, member)));
+        return ResponseEntity.ok(ApiResponse.success(new LoginResponse(token, member, isNewUser)));
     }
+    @PutMapping("/complete-social-profile")
+    public ResponseEntity<ApiResponse<String>> completeSocialProfile(
+            @RequestBody CompleteSocialProfileRequest request,
+            Authentication authentication) {
+        memberService.completeSocialProfile(authentication.getName(), request.getNickname(), request.getPhone());
+        return ResponseEntity.ok(ApiResponse.success("프로필 등록 완료"));
+    }
+
 }

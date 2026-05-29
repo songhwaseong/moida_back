@@ -10,12 +10,14 @@ public class LoginResponse {
     private String name;
     private String email;
     private String role;
+    private boolean isNewUser;
 
-    public LoginResponse(String token, Member member) {
+    public LoginResponse(String token, Member member, boolean isNewUser) {
         this.accessToken = token;
         this.id = member.getId();
         this.name = member.getName();
         this.email = member.getEmail();
         this.role = member.getRole().name();
+        this.isNewUser = isNewUser;
     }
 }
