@@ -22,4 +22,5 @@ public class SignupRequest {
 
     private String phone;
     private String location;
+    private String nickname;
 }

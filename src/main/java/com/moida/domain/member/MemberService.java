@@ -37,6 +37,18 @@ public class MemberService {
         return memberRepository.existsByEmail(email);
     }
 
+    public long countByNickname(String nickname) {
+        return memberRepository.countByNickname(nickname);
+    }
+
+
+    @Transactional
+    public void completeSocialProfile(String email, String nickname, String phone) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        member.updateNickname(nickname);
+        member.updateProfile(null, phone, null, null);
+    }
     @Transactional
     public void signup(SignupRequest dto) {
         // memberNo 자동 생성 (예: 2026050900001)
@@ -50,6 +62,7 @@ public class MemberService {
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .name(dto.getName())
+                .nickname(dto.getNickname())
                 .phone(dto.getPhone())
                 .location(dto.getLocation())
                 .role(MemberRole.USER)

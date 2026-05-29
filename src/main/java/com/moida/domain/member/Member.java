@@ -96,13 +96,17 @@ public class Member extends BaseTimeEntity {
     @Column(name = "social_login", length = 20)
     private String socialLogin; // 소셜 로그인 구분값 ("KAKAO" / "NAVER" / "GOOGLE" / null이면 일반 가입)
 
+    @Column(length = 50)
+    private String nickname; // 나중에 nullable=false 추가
+
     @Builder
-    private Member(String memberNo, String email, String password, String name, String phone,
+    private Member(String memberNo, String email, String password, String name, String nickname, String phone,
                    String profileImageUrl, String location, MemberRole role, String socialLogin) {// 소셜 로그인 구분값 추가
         this.memberNo = memberNo;
         this.email = email;
         this.password = password;
         this.name = name;
+        this.nickname = (nickname != null && !nickname.isBlank()) ? nickname : name;
         this.phone = phone;
         this.profileImageUrl = profileImageUrl;
         this.location = location;
@@ -175,6 +179,13 @@ public class Member extends BaseTimeEntity {
     public boolean isActive() {
         return this.status == MemberStatus.ACTIVE;
     }
+
+    public void updateNickname(String nickname) {
+        if (nickname != null && !nickname.isBlank()) {
+            this.nickname = nickname;
+        }
+    }
+
     // 관리자가 특정 회원의 역할을 변경할 때 사용
     public void updateRole(MemberRole role) {
         this.role = role;

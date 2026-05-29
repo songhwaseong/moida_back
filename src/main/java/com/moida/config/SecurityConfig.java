@@ -52,6 +52,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                         .accessDeniedHandler(jwtAccessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.PUT, "/api/auth/complete-social-profile").authenticated()
                         // Public endpoints
                         .requestMatchers(
                                 "/api/auth/**",
