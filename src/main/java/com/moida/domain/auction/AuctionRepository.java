@@ -24,4 +24,16 @@ public interface AuctionRepository extends JpaRepository<Auction, Long> {
 
     @Query("select a from Auction a where a.product.id in :productIds")
     List<Auction> findAllByProductIdIn(@Param("productIds") List<Long> productIds);
+
+    // 관리자 경매 관리 화면용 전체 조회.
+    // product/category 까지 fetch join 해 테이블 표시 시 추가 쿼리가 발생하지 않게 한다.
+    // 최신 생성순으로 정렬해 최근 시작한 경매가 상단에 노출되도록 한다.
+    @Query("""
+            select a
+            from Auction a
+            join fetch a.product p
+            join fetch p.category
+            order by a.createdAt desc, a.id desc
+            """)
+    List<Auction> findAllForAdmin();
 }

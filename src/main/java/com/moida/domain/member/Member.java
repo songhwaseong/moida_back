@@ -164,6 +164,11 @@ public class Member extends BaseTimeEntity {
         this.sanctionCount++;
     }
 
+    /** 경고(WARNING) — 상태는 변경하지 않고 누적 카운트만 증가시킨다. */
+    public void warn() {
+        this.sanctionCount++;
+    }
+
     public void deactivateAccount(String reasonCode, String reasonDetail) {
         this.status = MemberStatus.WITHDRAWN;
         this.withdrawnAt = LocalDateTime.now();
