@@ -70,6 +70,14 @@ public class Member extends BaseTimeEntity {
     @Column(name = "sanction_count", nullable = false)
     private Integer sanctionCount;
 
+    /**
+     * 누적 미결제(낙찰 후 결제 기한 만료) 횟수.
+     * 3 회 누적 시 자동으로 7일 입찰 정지(Sanction SUSPEND_7) 가 발급되고 본 카운트는 0 으로 리셋된다.
+     * 정상 결제 완료 시점에는 변경하지 않는다(전체 기록 기반 정책 변경 시 활용을 위해).
+     */
+    @Column(name = "non_payment_count", nullable = false)
+    private Integer nonPaymentCount;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private MemberRole role;
@@ -117,6 +125,7 @@ public class Member extends BaseTimeEntity {
         this.bidCount = 0;
         this.reportCount = 0;
         this.sanctionCount = 0;
+        this.nonPaymentCount = 0;
         this.role = role != null ? role : MemberRole.USER;
         this.status = MemberStatus.ACTIVE;
         this.socialLogin = socialLogin; // 소셜 로그인 구분값 초기화
@@ -152,6 +161,11 @@ public class Member extends BaseTimeEntity {
     public void increasePurchaseCount() { this.purchaseCount++; }
     public void increaseBidCount() { this.bidCount++; }
     public void increaseReportCount() { this.reportCount++; }
+
+    /** 미결제 1 회 추가. 누적값이 임계치(예: 3)에 도달하면 호출자가 Sanction 발급 후 resetNonPaymentCount() 를 부른다. */
+    public void increaseNonPaymentCount() { this.nonPaymentCount = (this.nonPaymentCount == null ? 0 : this.nonPaymentCount) + 1; }
+
+    public void resetNonPaymentCount() { this.nonPaymentCount = 0; }
 
     public void suspend(LocalDateTime until) {
         this.status = MemberStatus.SUSPENDED;

@@ -41,6 +41,13 @@ public record ProductDetailResponse(
         Long timeLeft,
         Boolean isLive,
         String endDate,
+        // 결제 대기 흐름 노출용 필드 (낙찰 후 잔액 부족 시 사용).
+        // - auctionStatus  : READY / LIVE / AWAITING_PAYMENT / SUCCESS / FAILED / CANCELED
+        // - paymentDeadline: AWAITING_PAYMENT 일 때만 채워짐 (그 외 null)
+        // - isWinner       : 요청 사용자가 낙찰자인지 (비로그인이면 null/false)
+        String auctionStatus,
+        String paymentDeadline,
+        Boolean isWinner,
         List<BidHistoryResponse> bidHistory
 ) {
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm");
@@ -92,6 +99,11 @@ public record ProductDetailResponse(
                 summary.timeLeft(),
                 summary.isLive(),
                 auction != null ? auction.getEndAt().format(DATE_TIME_FORMAT) : null,
+                auction != null ? auction.getStatus().name() : null,
+                (auction != null && auction.getPaymentDeadline() != null)
+                        ? auction.getPaymentDeadline().format(DATE_TIME_FORMAT) : null,
+                (memberId != null && auction != null && auction.getWinner() != null
+                        && auction.getWinner().getId().equals(memberId)),
                 bids.stream().map(BidHistoryResponse::from).toList()
         );
     }

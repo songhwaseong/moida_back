@@ -17,9 +17,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        // 클라이언트는 /topic/...을 구독하고, 앱 메시지는 /app/...으로 보낸다.
-        registry.enableSimpleBroker("/topic");
+        // 클라이언트는 /topic/... (공개 브로드캐스트, 예: 상품 채팅) 또는
+        // /user/queue/... (개인 알림) 을 구독하고, 앱 메시지는 /app/... 으로 보낸다.
+        // /queue 는 SimpMessagingTemplate.convertAndSendToUser(...) 가 /user/queue/{destination} 으로
+        // 라우팅할 때 필요한 베이스 prefix 이다.
+        registry.enableSimpleBroker("/topic", "/queue");
         registry.setApplicationDestinationPrefixes("/app");
+        registry.setUserDestinationPrefix("/user");
     }
 
     @Override

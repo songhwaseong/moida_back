@@ -22,6 +22,9 @@ public interface AuctionRepository extends JpaRepository<Auction, Long> {
 
     List<Auction> findAllByStatusAndStartAtBefore(AuctionStatus status, LocalDateTime startAt);
 
+    /** 결제 기한이 지난 AWAITING_PAYMENT 경매 조회 (스케줄러에서 유찰 처리 대상). */
+    List<Auction> findAllByStatusAndPaymentDeadlineBefore(AuctionStatus status, LocalDateTime now);
+
     @Query("select a from Auction a where a.product.id in :productIds")
     List<Auction> findAllByProductIdIn(@Param("productIds") List<Long> productIds);
 

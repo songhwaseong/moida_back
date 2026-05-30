@@ -56,15 +56,18 @@ public class Notification extends BaseTimeEntity {
     public void markAsRead() { this.isRead = true; }
 
     public enum NotificationType {
-        BID_PLACED,       // 입찰 발생
-        BID_OUTBID,       // 다른 사람이 더 높게 입찰
-        AUCTION_WON,      // 낙찰 성공
-        AUCTION_LOST,     // 낙찰 실패
-        AUCTION_ENDED,    // 경매 종료
-        INQUIRY_NEW,      // 새 문의
-        INQUIRY_ANSWERED, // 문의 답변 등록
-        CHAT_MESSAGE,     // 채팅 메시지
-        SANCTION,         // 제재 발생
-        NOTICE            // 공지사항
+        BID_PLACED,                     // 입찰 발생
+        BID_OUTBID,                     // 다른 사람이 더 높게 입찰
+        AUCTION_WON,                    // 낙찰 성공 (잔액 충분 → 즉시 정산)
+        AUCTION_WON_PAYMENT_REQUIRED,   // 낙찰 성공, 잔액 부족 → 결제 기한 내 입금 필요
+        PAYMENT_COMPLETED,              // 결제 완료
+        AUCTION_FAILED_BY_NONPAYMENT,   // 결제 기한 만료로 유찰 (낙찰자/판매자에게 다른 메시지)
+        AUCTION_LOST,                   // 낙찰 실패
+        AUCTION_ENDED,                  // 경매 종료
+        INQUIRY_NEW,                    // 새 문의
+        INQUIRY_ANSWERED,               // 문의 답변 등록
+        CHAT_MESSAGE,                   // 채팅 메시지
+        SANCTION,                       // 제재 발생
+        NOTICE                          // 공지사항
     }
 }
