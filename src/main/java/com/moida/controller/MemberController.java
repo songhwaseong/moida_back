@@ -3,9 +3,12 @@ package com.moida.controller;
 import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
 import com.moida.common.request.LoginRequest;
+import com.moida.common.request.RefreshTokenRequest;
 import com.moida.common.request.SignupRequest;
 import com.moida.common.response.ApiResponse;
 import com.moida.common.response.LoginResponse;
+import com.moida.common.response.RefreshTokenResponse;
+import com.moida.security.CustomUserDetails;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberService;
 import com.moida.security.JwtTokenProvider;
@@ -54,15 +57,61 @@ public class MemberController {
             throw new BusinessException(ErrorCode.MEMBER_ACCOUNT_INACTIVE);
         }
 
-        String token = jwtTokenProvider.createAccessToken(
+        String accessToken = jwtTokenProvider.createAccessToken(
+                member.getId(), member.getEmail(), member.getRole()
+        );
+        // 1시간짜리 access 와 함께 14일짜리 refresh 도 발급한다.
+        // 클라이언트는 access 가 만료(401)되면 refresh 로 새 토큰 쌍을 받아 끊김 없는 세션을 유지한다.
+        String refreshToken = jwtTokenProvider.createRefreshToken(
                 member.getId(), member.getEmail(), member.getRole()
         );
 
         return ResponseEntity.ok(ApiResponse.success(
-                new LoginResponse(token, member, false)
+                new LoginResponse(accessToken, refreshToken, member, false)
         ));
 
     }
+
+    /**
+     * Access Token 이 만료된 클라이언트가 보관 중인 refreshToken 으로 새 토큰 쌍을 받는 엔드포인트.
+     *
+     * 검증 순서:
+     *   1) refreshToken 자체가 유효한 JWT 인지 (서명/만료) — JwtTokenProvider.validateToken
+     *   2) 해당 회원이 DB 에 존재하고 ACTIVE 상태인지 — 탈퇴/정지 계정의 갱신 차단
+     *
+     * Rotation 정책:
+     *   - 매 호출마다 새 accessToken + 새 refreshToken 을 함께 발급한다.
+     *   - 클라이언트는 둘 다 교체 저장해서 다음 갱신 시 새 refresh 를 사용한다.
+     *   - stateless 라 서버측 즉시 revoke 는 불가하지만, refresh 가 짧은 주기로 회전되어 유출 영향이 제한된다.
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<RefreshTokenResponse>> refresh(
+            @Valid @RequestBody RefreshTokenRequest request
+    ) {
+        String refreshToken = request.getRefreshToken();
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "유효하지 않은 refresh token 입니다.");
+        }
+
+        // refresh 토큰에서 회원 식별자 추출 → 최신 회원 상태로 새 토큰 발급 (역할 등이 그새 바뀌었어도 반영됨).
+        Authentication authentication = jwtTokenProvider.getAuthentication(refreshToken);
+        CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
+        Member member = memberService.findByEmail(principal.getEmail())
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        if (!member.isActive()) {
+            // 탈퇴/정지/영구정지 등은 토큰 갱신 거부 — 만료 후 자연스럽게 강제 로그아웃 효과.
+            throw new BusinessException(ErrorCode.MEMBER_ACCOUNT_INACTIVE);
+        }
+
+        String newAccessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(member.getId(), member.getEmail(), member.getRole());
+
+        return ResponseEntity.ok(ApiResponse.success(
+                new RefreshTokenResponse(newAccessToken, newRefreshToken)
+        ));
+    }
+
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<String>> signup(
             @Valid
@@ -111,9 +160,10 @@ public class MemberController {
                 userInfo.kakaoAccount().profile().nickname(),
                 "KAKAO"
         );
-        // 기존 로그인과 동일하게 JWT 토큰 발급
-        String token = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
-        return ResponseEntity.ok(ApiResponse.success(new LoginResponse(token, member, isNewUser)));
+        // 기존 로그인과 동일하게 JWT 토큰 발급 (access + refresh 한 쌍)
+        String jwtAccessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
+        String jwtRefreshToken = jwtTokenProvider.createRefreshToken(member.getId(), member.getEmail(), member.getRole());
+        return ResponseEntity.ok(ApiResponse.success(new LoginResponse(jwtAccessToken, jwtRefreshToken, member, isNewUser)));
     }
 
     @PostMapping("/naverLogin")
@@ -131,8 +181,9 @@ public class MemberController {
                 userInfo.response().name(),
                 "NAVER"
         );
-        String token = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
-        return ResponseEntity.ok(ApiResponse.success(new LoginResponse(token, member, isNewUser)));
+        String jwtAccessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
+        String jwtRefreshToken = jwtTokenProvider.createRefreshToken(member.getId(), member.getEmail(), member.getRole());
+        return ResponseEntity.ok(ApiResponse.success(new LoginResponse(jwtAccessToken, jwtRefreshToken, member, isNewUser)));
     }
 
     @PostMapping("/googleLogin")
@@ -150,8 +201,9 @@ public class MemberController {
                 userInfo.name(),
                 "GOOGLE"
         );
-        String token = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
-        return ResponseEntity.ok(ApiResponse.success(new LoginResponse(token, member, isNewUser)));
+        String jwtAccessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
+        String jwtRefreshToken = jwtTokenProvider.createRefreshToken(member.getId(), member.getEmail(), member.getRole());
+        return ResponseEntity.ok(ApiResponse.success(new LoginResponse(jwtAccessToken, jwtRefreshToken, member, isNewUser)));
     }
     @PutMapping("/complete-social-profile")
     public ResponseEntity<ApiResponse<String>> completeSocialProfile(
