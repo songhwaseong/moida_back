@@ -9,6 +9,7 @@ import jakarta.persistence.LockModeType;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.List;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
 
@@ -29,4 +30,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     boolean existsByEmail(String email);
 
     boolean existsByPhone(String phone);
+
+    List<Member> findAllByNicknameIsNull();
+
+    long countByNickname(String nickname);
 }

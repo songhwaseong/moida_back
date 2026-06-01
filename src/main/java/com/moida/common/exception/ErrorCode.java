@@ -49,7 +49,13 @@ public enum ErrorCode {
     /** 지갑 거래 내역을 찾을 수 없는 경우 */
     WALLET_TRANSACTION_NOT_FOUND(HttpStatus.NOT_FOUND, "W004", "지갑 거래 내역을 찾을 수 없습니다."),
     /** 지갑 거래 내역을 현재 상태에서 처리할 수 없는 경우 */
-    INVALID_WALLET_TRANSACTION(HttpStatus.BAD_REQUEST, "W005", "처리할 수 없는 지갑 거래입니다.");
+    INVALID_WALLET_TRANSACTION(HttpStatus.BAD_REQUEST, "W005", "처리할 수 없는 지갑 거래입니다."),
+
+    // 배송 조회 관련 에러 코드
+    /** 지원하지 않는 택배사 코드인 경우 */
+    UNSUPPORTED_CARRIER(HttpStatus.BAD_REQUEST, "T001", "지원하지 않는 택배사입니다."),
+    /** 택배사 API 조회에 실패하거나 송장 정보가 없는 경우 */
+    TRACKING_LOOKUP_FAILED(HttpStatus.BAD_REQUEST, "T002", "배송 정보를 조회할 수 없습니다. 택배사와 송장번호를 확인해주세요.");
 
     private final HttpStatus status;
     private final String code;

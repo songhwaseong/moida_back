@@ -2,8 +2,10 @@ package com.moida.controller;
 
 import com.moida.common.request.ProductRequest;
 import com.moida.common.response.ApiResponse;
+import com.moida.common.response.MyBidResponse;
 import com.moida.common.response.ProductDetailResponse;
 import com.moida.common.response.ProductSummaryResponse;
+import com.moida.domain.auction.AuctionBidService;
 import com.moida.domain.product.ProductService;
 import com.moida.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final AuctionBidService auctionBidService;
 
     // 홈 화면 상품 목록 조회용 공개 API.
     // status=LIVE → 실시간 경매, status=SCHEDULED → 경매 예정 매물
@@ -35,6 +38,24 @@ public class ProductController {
         List<ProductSummaryResponse> products = productService.getProducts(category, status, sort, size);
         log.info("[ProductController] GET /api/products responseCount={}", products.size());
         return ResponseEntity.ok(ApiResponse.success(products));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<List<ProductSummaryResponse>>> getMyProducts(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        log.info("[ProductController] GET /api/products/me memberId={}", userDetails.getMemberId());
+        List<ProductSummaryResponse> products = productService.getMyProducts(userDetails.getMemberId());
+        return ResponseEntity.ok(ApiResponse.success(products));
+    }
+
+    @GetMapping("/bids/me")
+    public ResponseEntity<ApiResponse<List<MyBidResponse>>> getMyBids(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        log.info("[ProductController] GET /api/products/bids/me memberId={}", userDetails.getMemberId());
+        List<MyBidResponse> bids = auctionBidService.getMyBids(userDetails.getMemberId());
+        return ResponseEntity.ok(ApiResponse.success(bids));
     }
 
     // 상품 상세 화면에서 productId 기준으로 DB 데이터를 조회한다.

@@ -2,12 +2,14 @@ package com.moida.config;
 
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
-import com.moida.domain.member.MemberRole;
+import com.moida.domain.settlement.FeeRule;
+import com.moida.domain.settlement.FeeRuleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import jakarta.transaction.Transactional;
+import java.util.List;
 
 
 @Slf4j
@@ -16,43 +18,42 @@ import org.springframework.stereotype.Component;
 public class DataInitializer implements CommandLineRunner {
 
     private final MemberRepository memberRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final FeeRuleRepository feeRuleRepository;
 
-    // LoginPage.tsx의 ADMIN_CREDENTIALS를 DB로 이전
-    private static final String[][] ADMIN_ACCOUNTS = {
-            {"admin@admin.com", "admin", "관리자1"},
-    };
+    // 관리자/매니저 목업 계정 시드는 모두 제거되었다.
+    // 권한이 필요한 계정은 운영자가 DB에서 직접 role 컬럼을 수정하거나 별도 절차로 처리한다.
 
-    private static final String[][] MANAGER_ACCOUNTS = {
-            {"admin@bazar.kr",        "admin1234",   "관리자2"},
-            {"kmikyung761@gmail.com", "1",           "김미경"},
-            {"manager@bazar.kr",      "manager5678", "매니저"},
-            {"yalejong96@gmail.com",  "2",           "관리자3"},
-            {"zes1357@outlook.com",   "1",           "관리자4"},
-            {"supyoungsun@gmail.com", "2",           "관리자5"},
+    /** 기본 수수료 정책. fee_rules 테이블이 비어 있을 때만 시드한다. */
+    private static final long[][] DEFAULT_FEE_RULES = {
+            // {minAmount, feeRate%}
+            {0L,          5},
+            {500_000L,    4},
+            {1_000_000L,  3},
+            {10_000_000L, 2},
     };
 
     @Override
+    @Transactional
     public void run(String... args) {
-        createAccounts(ADMIN_ACCOUNTS, MemberRole.ADMIN, "ADMIN");
-        createAccounts(MANAGER_ACCOUNTS, MemberRole.MANAGER, "MANAGER");
+        migrateNicknames();
+        seedFeeRules();
     }
 
-    private void createAccounts(String[][] accounts, MemberRole role, String prefix) {
-        for (int i = 0; i < accounts.length; i++) {
-            String email    = accounts[i][0];
-            String password = accounts[i][1];
-            String name     = accounts[i][2];
-            if (memberRepository.existsByEmail(email)) continue;
-            Member member = Member.builder()
-                    .memberNo(String.format(prefix + "%05d", i + 1))
-                    .email(email)
-                    .password(passwordEncoder.encode(password))
-                    .name(name)
-                    .role(role)
-                    .build();
-            memberRepository.save(member);
-            log.info("계정 생성: {} ({})", email, role);
+    private void migrateNicknames() {
+        List<Member> members = memberRepository.findAllByNicknameIsNull();
+        for (Member member : members) {
+            member.updateNickname(member.getName());
         }
+    }
+
+    private void seedFeeRules() {
+        if (feeRuleRepository.count() > 0) return;
+        for (long[] row : DEFAULT_FEE_RULES) {
+            feeRuleRepository.save(FeeRule.builder()
+                    .minAmount(row[0])
+                    .feeRate((double) row[1])
+                    .build());
+        }
+        log.info("기본 수수료 정책 {}건 시드 완료", DEFAULT_FEE_RULES.length);
     }
 }

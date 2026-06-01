@@ -1,6 +1,6 @@
 package com.moida.common.response;
 
-import com.moida.common.request.NotificationSettingRequest;
+import com.moida.domain.notification.NotificationSetting;
 
 public record NotificationSettingResponse(
         boolean bidEnabled,
@@ -9,18 +9,13 @@ public record NotificationSettingResponse(
         boolean tradeEnabled,
         boolean marketingEnabled
 ) {
-
-    public static NotificationSettingResponse defaults() {
-        return new NotificationSettingResponse(true, true, true, true, false);
-    }
-
-    public static NotificationSettingResponse from(NotificationSettingRequest request) {
+    public static NotificationSettingResponse from(NotificationSetting setting) {
         return new NotificationSettingResponse(
-                request.bidEnabled(),
-                request.priceEnabled(),
-                request.chatEnabled(),
-                request.tradeEnabled(),
-                request.marketingEnabled()
+                setting.isBidEnabled(),
+                setting.isPriceEnabled(),
+                setting.isChatEnabled(),
+                setting.isTradeEnabled(),
+                setting.isMarketingEnabled()
         );
     }
 }

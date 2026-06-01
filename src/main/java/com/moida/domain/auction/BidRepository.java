@@ -25,6 +25,18 @@ public interface BidRepository extends JpaRepository<Bid, Long> {
 
     Page<Bid> findAllByBidderId(Long bidderId, Pageable pageable);
 
+    @Query("""
+            select b
+            from Bid b
+            join fetch b.bidder
+            join fetch b.auction a
+            join fetch a.product p
+            join fetch p.category
+            where b.bidder.id = :bidderId
+            order by b.createdAt desc, b.id desc
+            """)
+    List<Bid> findMyBidHistory(@Param("bidderId") Long bidderId, Pageable pageable);
+
     Optional<Bid> findFirstByAuctionIdOrderByAmountDesc(Long auctionId);
 
     long countByAuctionId(Long auctionId);

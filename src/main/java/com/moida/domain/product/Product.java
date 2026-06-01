@@ -67,6 +67,12 @@ public class Product extends BaseTimeEntity {
     @Column(length = 100)
     private String location;
 
+    @Column(name = "carrier_code", length = 30)
+    private String carrierCode;
+
+    @Column(name = "tracking_no", length = 30)
+    private String trackingNo;
+
     @Column(name = "view_count", nullable = false)
     private Long viewCount;
 
@@ -80,14 +86,23 @@ public class Product extends BaseTimeEntity {
     @Column(name = "auction_scheduled_at")
     private LocalDateTime auctionScheduledAt;
 
+    // 등록 시 입력된 즉시낙찰가/최소 호가단위를 보관한다.
+    // SCHEDULED → LIVE 전환 시점에 AdminProductService 가 Auction 엔티티로 옮겨 사용한다.
+    // 즉시낙찰가는 선택값이므로 nullable, 최소 호가단위도 누락 시 기본값으로 폴백한다.
+    @Column(name = "immediate_price")
+    private Long immediatePrice;
+
+    @Column(name = "min_bid_unit")
+    private Long minBidUnit;
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> images = new ArrayList<>();
 
     @Builder
     private Product(String productNo, Member seller, Category category, String name,
                     String description, ProductType type, ProductCondition condition,
-                    Long price, String location, String mainImageUrl,
-                    LocalDateTime auctionScheduledAt) {
+                    Long price, String location, String carrierCode, String trackingNo, String mainImageUrl,
+                    LocalDateTime auctionScheduledAt, Long immediatePrice, Long minBidUnit) {
         this.productNo = productNo;
         this.seller = seller;
         this.category = category;
@@ -95,11 +110,17 @@ public class Product extends BaseTimeEntity {
         this.description = description;
         this.type = type;
         this.condition = condition;
-        this.status = ProductStatus.SCHEDULED;
+        // 신규 등록 상품은 관리자 승인 대기(PENDING)로 시작한다.
+        // 관리자가 검토 후 SCHEDULED(경매예정) 또는 LIVE(경매중) 로 전환한다.
+        this.status = ProductStatus.PENDING;
         this.price = price;
         this.location = location;
+        this.carrierCode = carrierCode;
+        this.trackingNo = trackingNo;
         this.mainImageUrl = mainImageUrl;
         this.auctionScheduledAt = auctionScheduledAt;
+        this.immediatePrice = immediatePrice;
+        this.minBidUnit = minBidUnit;
         this.viewCount = 0L;
         this.likeCount = 0L;
     }

@@ -2,10 +2,13 @@ package com.moida.domain.member;
 
 import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
+import com.moida.common.request.ChangePasswordRequest;
 import com.moida.common.request.DeactivateAccountRequest;
 import com.moida.common.request.SignupRequest;
+import com.moida.common.request.UpdateProfileRequest;
 import com.moida.common.response.AccountDeactivationInfoResponse;
 import com.moida.common.response.AdminDeactivatedMemberResponse;
+import com.moida.common.response.MemberProfileResponse;
 import com.moida.domain.wallet.WalletTransaction;
 import com.moida.domain.wallet.WalletTransactionRepository;
 import jakarta.transaction.Transactional;
@@ -37,6 +40,19 @@ public class MemberService {
         return memberRepository.existsByEmail(email);
     }
 
+    public long countByNickname(String nickname) {
+        return memberRepository.countByNickname(nickname);
+    }
+
+
+    @Transactional
+    public void completeSocialProfile(String email, String nickname, String phone) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        member.updateNickname(nickname);
+        member.updateProfile(null, phone, null, null);
+    }
+
     @Transactional
     public void signup(SignupRequest dto) {
         // memberNo 자동 생성 (예: 2026050900001)
@@ -50,6 +66,7 @@ public class MemberService {
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .name(dto.getName())
+                .nickname(dto.getNickname())
                 .phone(dto.getPhone())
                 .location(dto.getLocation())
                 .role(MemberRole.USER)
@@ -146,4 +163,24 @@ public class MemberService {
         return normalized.length() > maxLength ? normalized.substring(0, maxLength) : normalized;
     }
 
+    public MemberProfileResponse getMemberProfile(Long memberId) {
+        return new MemberProfileResponse(findById(memberId));
+    }
+
+    @Transactional
+    public void updateMemberProfile(Long memberId, UpdateProfileRequest request) {
+        Member member = findById(memberId);
+        member.updateNickname(request.getNickname());
+        member.updateProfile(null, request.getPhone(), null, null);
+        member.updateAvatar(request.getAvatar());
+    }
+
+    @Transactional
+    public void changePassword(Long memberId, ChangePasswordRequest request) {
+        Member member = findById(memberId);
+        if (!passwordEncoder.matches(request.getCurrentPassword(), member.getPassword())) {
+            throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+        }
+        member.changePassword(passwordEncoder.encode(request.getNewPassword()));
+    }
 }

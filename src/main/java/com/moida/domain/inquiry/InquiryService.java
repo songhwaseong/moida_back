@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,13 @@ public class InquiryService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
         return inquiryRepository.findAllByProductIdOrderByCreatedAtDesc(productId).stream()
+                .map(InquiryResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<InquiryResponse> getMyInquiries(Long memberId) {
+        return inquiryRepository.findMyInquiries(memberId, PageRequest.of(0, 100)).stream()
                 .map(InquiryResponse::from)
                 .toList();
     }

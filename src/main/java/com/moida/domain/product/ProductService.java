@@ -17,6 +17,7 @@ import com.moida.common.request.ProductRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,12 +29,15 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ProductService {
+
+    private static final Set<String> SUPPORTED_CARRIER_CODES = Set.of("01", "04", "05", "06", "08", "11", "12", "23");
 
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
@@ -68,8 +72,13 @@ public class ProductService {
         int mainImageIndex = resolveMainImageIndex(request.getMainImageIndex(), requestImages.size());
         // mainImageUrl drives list thumbnails; product_images keeps the full detail gallery.
         String mainImageUrl = requestImages.isEmpty() ? null : requestImages.get(mainImageIndex);
+        String carrierCode = normalizeShipmentValue(request.getCarrierCode());
+        String trackingNo = normalizeTrackingNo(request.getTrackingNo());
+        validateShipment(carrierCode, trackingNo);
 
         // 4. Product 엔티티 생성 (프로젝트가 경매-only로 피벗되어 type은 AUCTION 고정)
+        // immediatePrice / minBidUnit 은 등록 단계에서 입력받아 Product 에 함께 보관한다.
+        // 관리자가 SCHEDULED → LIVE 로 전환할 때 AdminProductService 가 Auction 으로 옮겨 사용한다.
         Product product = Product.builder()
                 .productNo(productNo)
                 .seller(seller)
@@ -80,7 +89,11 @@ public class ProductService {
                 .condition(request.toProductCondition()) // "S급" → ProductCondition.S
                 .price(request.getPrice())
                 .location(request.getLocation())
+                .carrierCode(carrierCode)
+                .trackingNo(trackingNo)
                 .mainImageUrl(mainImageUrl)        // Base64 문자열 (추후 S3 등으로 교체)
+                .immediatePrice(request.getBuyNowPrice())
+                .minBidUnit(request.getMinBidUnit())
                 .build();
 
         // 5. 이미지 등록 (대표 이미지)
@@ -100,6 +113,42 @@ public class ProductService {
                 saved.getId(), saved.getProductNo());
 
         return saved.getId(); // 저장된 상품 ID 반환
+    }
+    @Transactional
+    public void approveProduct(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+        if (product.getStatus() != ProductStatus.PENDING) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "승인 대기 상태의 상품만 승인할 수 있습니다.");
+        }
+        product.changeStatus(ProductStatus.SCHEDULED);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Product> findPendingProducts() {
+        return productRepository.findAllByStatus(ProductStatus.PENDING, Pageable.unpaged()).getContent();
+    }
+
+
+    private String normalizeShipmentValue(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String normalizeTrackingNo(String value) {
+        String normalized = normalizeShipmentValue(value);
+        return normalized == null ? null : normalized.replaceAll("[^0-9]", "");
+    }
+
+    private void validateShipment(String carrierCode, String trackingNo) {
+        if (carrierCode == null || trackingNo == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "택배사와 송장번호를 입력해주세요.");
+        }
+        if (trackingNo != null && !trackingNo.matches("\\d{10,14}")) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "송장번호는 10~14자리 숫자로 입력해주세요.");
+        }
+        if (carrierCode != null && !SUPPORTED_CARRIER_CODES.contains(carrierCode)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "지원하지 않는 택배사입니다.");
+        }
     }
 
     // 홈/인기 화면 상품 카드 리스트 조회.
@@ -147,6 +196,17 @@ public class ProductService {
         return applyPriceSortIfNeeded(responses, sort);
     }
 
+    @Transactional(readOnly = true)
+    public List<ProductSummaryResponse> getMyProducts(Long memberId) {
+        List<Product> products = productRepository.findAllBySellerIdOrderByCreatedAtDesc(memberId, PageRequest.of(0, 100));
+        Map<Long, Auction> auctionsByProductId = findAuctionsByProductId(products);
+
+        return products.stream()
+                .filter(product -> product.getStatus() != ProductStatus.DELETED)
+                .map(product -> ProductSummaryResponse.from(product, auctionsByProductId.get(product.getId())))
+                .toList();
+    }
+
     // 상품 상세 조회.
     // memberId 가 주어지면(=로그인 상태) 해당 사용자의 좋아요 여부를 함께 채워
     // 상세 화면 진입 시 하트 활성 상태가 즉시 정확하게 보이도록 한다.
@@ -157,8 +217,18 @@ public class ProductService {
     public ProductDetailResponse getProduct(Long productId, Long memberId) {
         log.info("[ProductService] getProduct start productId={}, memberId={}", productId, memberId);
         // 상세 화면은 판매자, 카테고리, 이미지 목록까지 함께 필요하므로 전용 fetch query를 사용한다.
-        Product product = productRepository.findVisibleProductDetail(productId)
+        // 판매자 본인은 자신의 PENDING/HIDDEN 상품도 볼 수 있어야 하므로,
+        // 상태 필터 없는 쿼리로 먼저 가져와 본인 여부를 확인한 뒤 가시성 정책을 적용한다.
+        Product product = productRepository.findOwnProductDetail(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        ProductStatus status = product.getStatus();
+        boolean isOwner = memberId != null && product.isOwnedBy(memberId);
+        // DELETED 는 본인도 조회 불가. PENDING/HIDDEN 은 본인만 조회 가능.
+        if (status == ProductStatus.DELETED
+                || ((status == ProductStatus.PENDING || status == ProductStatus.HIDDEN) && !isOwner)) {
+            throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
+        }
 
         Auction auction = auctionRepository.findByProductId(product.getId()).orElse(null);
         log.info("[ProductService] getProduct loaded productId={}, productNo={}, hasAuction={}",
