@@ -70,6 +70,7 @@ public class SecurityConfig {
                                 "/api/auctions/**",
                                 "/api/categories/**",
                                 "/api/notices/**",
+                                "/api/terms/**",
                                 "/api/banners/**",
                                 "/api/faqs/**"
                         ).permitAll()
@@ -84,3 +85,4 @@ public class SecurityConfig {
         return http.build();
     }
 }
+

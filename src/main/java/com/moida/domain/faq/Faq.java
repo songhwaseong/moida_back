@@ -53,4 +53,12 @@ public class Faq extends BaseTimeEntity {
         this.answer = answer;
         this.visible = visible != null && visible;
     }
+
+    public void update(String category, String question, String answer, Integer displayOrder, Boolean visible) {
+        this.category = category;
+        this.question = question;
+        this.answer = answer;
+        this.displayOrder = displayOrder;
+        this.visible = visible != null && visible;
+    }
 }

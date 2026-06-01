@@ -9,5 +9,7 @@ public interface FaqRepository extends JpaRepository<Faq, Long> {
 
     Optional<Faq> findFirstByDisplayOrder(Integer displayOrder);
 
+    List<Faq> findAllByOrderByDisplayOrderAscIdAsc();
+
     List<Faq> findAllByVisibleTrueOrderByDisplayOrderAscIdAsc();
 }
