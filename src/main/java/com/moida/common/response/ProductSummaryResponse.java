@@ -33,7 +33,8 @@ public record ProductSummaryResponse(
         Long currentPrice,
         Integer bidCount,
         Long timeLeft,
-        Boolean isLive
+        Boolean isLive,
+        String seller
 ) {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
@@ -69,7 +70,8 @@ public record ProductSummaryResponse(
                 auction != null ? auction.getCurrentPrice() : null,
                 auction != null ? auction.getBidCount() : 0,
                 auction != null ? Math.max(0, Duration.between(LocalDateTime.now(), auction.getEndAt()).getSeconds()) : 0,
-                liveAuction
+                liveAuction,
+                product.getSeller().getName()
         );
     }
 
