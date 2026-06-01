@@ -17,6 +17,7 @@ import com.moida.common.request.ProductRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -113,6 +114,21 @@ public class ProductService {
 
         return saved.getId(); // 저장된 상품 ID 반환
     }
+    @Transactional
+    public void approveProduct(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+        if (product.getStatus() != ProductStatus.PENDING) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "승인 대기 상태의 상품만 승인할 수 있습니다.");
+        }
+        product.changeStatus(ProductStatus.SCHEDULED);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Product> findPendingProducts() {
+        return productRepository.findAllByStatus(ProductStatus.PENDING, Pageable.unpaged()).getContent();
+    }
+
 
     private String normalizeShipmentValue(String value) {
         return value == null || value.isBlank() ? null : value.trim();

@@ -107,6 +107,9 @@ public class Member extends BaseTimeEntity {
     @Column(length = 50)
     private String nickname; // 나중에 nullable=false 추가
 
+    @Column(length = 10)
+    private String avatar;
+
     @Builder
     private Member(String memberNo, String email, String password, String name, String nickname, String phone,
                    String profileImageUrl, String location, MemberRole role, String socialLogin) {// 소셜 로그인 구분값 추가
@@ -202,6 +205,12 @@ public class Member extends BaseTimeEntity {
     public void updateNickname(String nickname) {
         if (nickname != null && !nickname.isBlank()) {
             this.nickname = nickname;
+        }
+    }
+
+    public void updateAvatar(String avatar) {
+        if (avatar != null && !avatar.isBlank()) {
+            this.avatar = avatar;
         }
     }
 
