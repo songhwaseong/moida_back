@@ -117,14 +117,15 @@ public class AdminProductService {
             return;
         }
         LocalDateTime now = LocalDateTime.now();
+        // 등록 시점에 Product 에 보관해둔 입력값(immediatePrice / minBidUnit)을 사용한다.
+        // immediatePrice 는 선택값이라 null 허용, minBidUnit 은 누락 시 DEFAULT 로 폴백한다.
+        Long minBidUnit = product.getMinBidUnit() != null ? product.getMinBidUnit() : DEFAULT_MIN_BID_UNIT;
         Auction auction = Auction.builder()
                 .auctionNo(generateAuctionNo(now))
                 .product(product)
                 .startPrice(product.getPrice())
-                // immediate(즉시낙찰가)/minBidUnit 은 등록 시 입력값이 Product 에 저장되지 않으므로
-                // 임시로 null / 기본값을 사용한다. 정식 운영에서는 등록 단계에서 함께 저장하도록 보강 필요.
-                .immediatePrice(null)
-                .minBidUnit(DEFAULT_MIN_BID_UNIT)
+                .immediatePrice(product.getImmediatePrice())
+                .minBidUnit(minBidUnit)
                 .startAt(now)
                 .endAt(now.plusDays(DEFAULT_AUCTION_DAYS))
                 .build();

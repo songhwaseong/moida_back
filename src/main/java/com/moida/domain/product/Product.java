@@ -86,6 +86,15 @@ public class Product extends BaseTimeEntity {
     @Column(name = "auction_scheduled_at")
     private LocalDateTime auctionScheduledAt;
 
+    // 등록 시 입력된 즉시낙찰가/최소 호가단위를 보관한다.
+    // SCHEDULED → LIVE 전환 시점에 AdminProductService 가 Auction 엔티티로 옮겨 사용한다.
+    // 즉시낙찰가는 선택값이므로 nullable, 최소 호가단위도 누락 시 기본값으로 폴백한다.
+    @Column(name = "immediate_price")
+    private Long immediatePrice;
+
+    @Column(name = "min_bid_unit")
+    private Long minBidUnit;
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> images = new ArrayList<>();
 
@@ -93,7 +102,7 @@ public class Product extends BaseTimeEntity {
     private Product(String productNo, Member seller, Category category, String name,
                     String description, ProductType type, ProductCondition condition,
                     Long price, String location, String carrierCode, String trackingNo, String mainImageUrl,
-                    LocalDateTime auctionScheduledAt) {
+                    LocalDateTime auctionScheduledAt, Long immediatePrice, Long minBidUnit) {
         this.productNo = productNo;
         this.seller = seller;
         this.category = category;
@@ -110,6 +119,8 @@ public class Product extends BaseTimeEntity {
         this.trackingNo = trackingNo;
         this.mainImageUrl = mainImageUrl;
         this.auctionScheduledAt = auctionScheduledAt;
+        this.immediatePrice = immediatePrice;
+        this.minBidUnit = minBidUnit;
         this.viewCount = 0L;
         this.likeCount = 0L;
     }

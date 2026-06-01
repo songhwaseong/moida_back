@@ -76,6 +76,8 @@ public class ProductService {
         validateShipment(carrierCode, trackingNo);
 
         // 4. Product 엔티티 생성 (프로젝트가 경매-only로 피벗되어 type은 AUCTION 고정)
+        // immediatePrice / minBidUnit 은 등록 단계에서 입력받아 Product 에 함께 보관한다.
+        // 관리자가 SCHEDULED → LIVE 로 전환할 때 AdminProductService 가 Auction 으로 옮겨 사용한다.
         Product product = Product.builder()
                 .productNo(productNo)
                 .seller(seller)
@@ -89,6 +91,8 @@ public class ProductService {
                 .carrierCode(carrierCode)
                 .trackingNo(trackingNo)
                 .mainImageUrl(mainImageUrl)        // Base64 문자열 (추후 S3 등으로 교체)
+                .immediatePrice(request.getBuyNowPrice())
+                .minBidUnit(request.getMinBidUnit())
                 .build();
 
         // 5. 이미지 등록 (대표 이미지)

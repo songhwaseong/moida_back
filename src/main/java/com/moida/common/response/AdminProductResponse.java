@@ -23,7 +23,10 @@ public record AdminProductResponse(
         long price,
         String status,
         String registeredAt,
-        String description
+        String description,
+        // 관리자 테이블의 송장번호 컬럼/배송조회 모달에 사용. 등록 시 입력값이 없으면 null.
+        String carrierCode,
+        String trackingNo
 ) {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
@@ -60,7 +63,9 @@ public record AdminProductResponse(
                 product.getPrice(),
                 toKorean(product.getStatus()),
                 product.getCreatedAt() == null ? "-" : product.getCreatedAt().format(DATE_FMT),
-                product.getDescription()
+                product.getDescription(),
+                product.getCarrierCode(),
+                product.getTrackingNo()
         );
     }
 }
