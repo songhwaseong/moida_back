@@ -49,6 +49,15 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.success(products));
     }
 
+    @GetMapping("/seller/{sellerId}")
+    public ResponseEntity<ApiResponse<List<ProductSummaryResponse>>> getSellerProducts(
+            @PathVariable Long sellerId
+    ) {
+        log.info("[ProductController] GET /api/products/seller/{}", sellerId);
+        List<ProductSummaryResponse> products = productService.getSellerProducts(sellerId);
+        return ResponseEntity.ok(ApiResponse.success(products));
+    }
+
     @GetMapping("/bids/me")
     public ResponseEntity<ApiResponse<List<MyBidResponse>>> getMyBids(
             @AuthenticationPrincipal CustomUserDetails userDetails
