@@ -95,7 +95,9 @@ public class Product extends BaseTimeEntity {
         this.description = description;
         this.type = type;
         this.condition = condition;
-        this.status = ProductStatus.SCHEDULED;
+        // 신규 등록 상품은 관리자 승인 대기(PENDING)로 시작한다.
+        // 관리자가 검토 후 SCHEDULED(경매예정) 또는 LIVE(경매중) 로 전환한다.
+        this.status = ProductStatus.PENDING;
         this.price = price;
         this.location = location;
         this.mainImageUrl = mainImageUrl;

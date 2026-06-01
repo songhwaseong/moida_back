@@ -26,8 +26,11 @@ public class Sanction extends BaseTimeEntity {
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "admin_id", nullable = false)
+    /**
+     * 발급한 관리자. null 이면 시스템 자동 발급(예: 결제 미이행 N회 누적으로 SUSPEND_7 자동 발급).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "admin_id")
     private Member admin;
 
     @Enumerated(EnumType.STRING)

@@ -9,4 +9,7 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     List<Category> findAllByIsActiveTrueOrderByDisplayOrderAscIdAsc();
     Optional<Category> findByNameAndIsActiveTrue(String name);
+
+    // 관리자 화면용 — 활성/비활성 모두 포함해 displayOrder 순으로 반환한다.
+    List<Category> findAllByOrderByDisplayOrderAscIdAsc();
 }

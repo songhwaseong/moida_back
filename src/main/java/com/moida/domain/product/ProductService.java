@@ -168,8 +168,18 @@ public class ProductService {
     public ProductDetailResponse getProduct(Long productId, Long memberId) {
         log.info("[ProductService] getProduct start productId={}, memberId={}", productId, memberId);
         // 상세 화면은 판매자, 카테고리, 이미지 목록까지 함께 필요하므로 전용 fetch query를 사용한다.
-        Product product = productRepository.findVisibleProductDetail(productId)
+        // 판매자 본인은 자신의 PENDING/HIDDEN 상품도 볼 수 있어야 하므로,
+        // 상태 필터 없는 쿼리로 먼저 가져와 본인 여부를 확인한 뒤 가시성 정책을 적용한다.
+        Product product = productRepository.findOwnProductDetail(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        ProductStatus status = product.getStatus();
+        boolean isOwner = memberId != null && product.isOwnedBy(memberId);
+        // DELETED 는 본인도 조회 불가. PENDING/HIDDEN 은 본인만 조회 가능.
+        if (status == ProductStatus.DELETED
+                || ((status == ProductStatus.PENDING || status == ProductStatus.HIDDEN) && !isOwner)) {
+            throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
+        }
 
         Auction auction = auctionRepository.findByProductId(product.getId()).orElse(null);
         log.info("[ProductService] getProduct loaded productId={}, productNo={}, hasAuction={}",

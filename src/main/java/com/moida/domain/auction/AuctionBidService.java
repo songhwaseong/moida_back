@@ -7,8 +7,8 @@ import com.moida.common.response.BidResultResponse;
 import com.moida.common.response.MyBidResponse;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
+import com.moida.domain.member.MemberStatus;
 import com.moida.domain.product.Product;
-import com.moida.domain.product.ProductStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +27,7 @@ public class AuctionBidService {
     private final AuctionRepository auctionRepository;
     private final BidRepository bidRepository;
     private final MemberRepository memberRepository;
+    private final AuctionCompletionService completionService;
 
     @Transactional(readOnly = true)
     public List<MyBidResponse> getMyBids(Long memberId) {
@@ -83,6 +84,30 @@ public class AuctionBidService {
         Member bidder = memberRepository.findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
+        // 정지된 회원은 입찰 불가 (결제 미이행 누적으로 자동 정지된 케이스 포함).
+        // suspendedUntil 이 지났는데도 status 가 SUSPENDED 인 경우 — 별도 해제 잡이 돌기 전에 입찰 시도 — 는
+        // suspendedUntil 시각으로 한 번 더 비교해 자연 해제분은 허용한다.
+        if (bidder.getStatus() == MemberStatus.SUSPENDED
+                && (bidder.getSuspendedUntil() == null
+                    || java.time.LocalDateTime.now().isBefore(bidder.getSuspendedUntil()))) {
+            throw new BusinessException(
+                    ErrorCode.ACCESS_DENIED,
+                    "입찰이 정지된 계정입니다." + (bidder.getSuspendedUntil() != null
+                            ? " (해제: " + bidder.getSuspendedUntil() + ")" : "")
+            );
+        }
+
+        // 지갑 예치금 잔액 검증.
+        // 프론트(AuctionDetailPage)에서 모달/버튼 단계에서 1차 차단하지만,
+        // API 를 직접 호출해 우회하는 경우를 막기 위해 서버에서도 동일 조건으로 재검증한다.
+        // 정책: 보유 잔액보다 큰 금액은 입찰 불가 (frontend: amount > userBalance 와 동일).
+        if (bidder.getBalance() < amount) {
+            throw new BusinessException(
+                    ErrorCode.INSUFFICIENT_BALANCE,
+                    "잔액이 부족합니다. (보유: " + bidder.getBalance() + "원, 입찰: " + amount + "원)"
+            );
+        }
+
         bidRepository.findAllByAuctionIdOrderByAmountDesc(auction.getId())
                 .forEach(Bid::unmarkWinning);
 
@@ -96,8 +121,10 @@ public class AuctionBidService {
                 .build());
 
         if (immediateBid) {
-            auction.close(bidder, amount);
-            product.changeStatus(ProductStatus.SOLD);
+            // 잔액 충분 → 즉시 차감 + Settlement + SOLD,
+            // 잔액 부족 → AWAITING_PAYMENT 전환 (입찰 단계 검증을 통과했으므로 보통은 충분하지만,
+            //   동시 출금 등 극단 케이스 대비). AuctionCompletionService 가 분기를 모두 처리한다.
+            completionService.finalizeWinner(auction, bidder, amount);
         }
 
         List<Bid> bidHistory = bidRepository.findHistoryByAuctionId(auction.getId());
