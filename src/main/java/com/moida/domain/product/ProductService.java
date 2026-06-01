@@ -28,12 +28,15 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ProductService {
+
+    private static final Set<String> SUPPORTED_CARRIER_CODES = Set.of("01", "04", "05", "06", "08", "11", "12", "23");
 
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
@@ -68,6 +71,9 @@ public class ProductService {
         int mainImageIndex = resolveMainImageIndex(request.getMainImageIndex(), requestImages.size());
         // mainImageUrl drives list thumbnails; product_images keeps the full detail gallery.
         String mainImageUrl = requestImages.isEmpty() ? null : requestImages.get(mainImageIndex);
+        String carrierCode = normalizeShipmentValue(request.getCarrierCode());
+        String trackingNo = normalizeTrackingNo(request.getTrackingNo());
+        validateShipment(carrierCode, trackingNo);
 
         // 4. Product 엔티티 생성 (프로젝트가 경매-only로 피벗되어 type은 AUCTION 고정)
         Product product = Product.builder()
@@ -80,6 +86,8 @@ public class ProductService {
                 .condition(request.toProductCondition()) // "S급" → ProductCondition.S
                 .price(request.getPrice())
                 .location(request.getLocation())
+                .carrierCode(carrierCode)
+                .trackingNo(trackingNo)
                 .mainImageUrl(mainImageUrl)        // Base64 문자열 (추후 S3 등으로 교체)
                 .build();
 
@@ -100,6 +108,27 @@ public class ProductService {
                 saved.getId(), saved.getProductNo());
 
         return saved.getId(); // 저장된 상품 ID 반환
+    }
+
+    private String normalizeShipmentValue(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String normalizeTrackingNo(String value) {
+        String normalized = normalizeShipmentValue(value);
+        return normalized == null ? null : normalized.replaceAll("[^0-9]", "");
+    }
+
+    private void validateShipment(String carrierCode, String trackingNo) {
+        if (carrierCode == null || trackingNo == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "택배사와 송장번호를 입력해주세요.");
+        }
+        if (trackingNo != null && !trackingNo.matches("\\d{10,14}")) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "송장번호는 10~14자리 숫자로 입력해주세요.");
+        }
+        if (carrierCode != null && !SUPPORTED_CARRIER_CODES.contains(carrierCode)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "지원하지 않는 택배사입니다.");
+        }
     }
 
     // 홈/인기 화면 상품 카드 리스트 조회.

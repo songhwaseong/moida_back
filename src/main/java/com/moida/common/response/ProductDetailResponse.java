@@ -27,6 +27,8 @@ public record ProductDetailResponse(
         String auctionDate,
         String category,
         String description,
+        String carrierCode,
+        String trackingNo,
         String seller,
         Double sellerTemp,
         Integer sellerSales,
@@ -67,6 +69,10 @@ public record ProductDetailResponse(
             images = List.of(product.getMainImageUrl());
         }
 
+        boolean isWinner = memberId != null && auction != null && auction.getWinner() != null
+                && auction.getWinner().getId().equals(memberId);
+        boolean canViewShipment = memberId != null && (product.isOwnedBy(memberId) || isWinner);
+
         return new ProductDetailResponse(
                 summary.id(),
                 summary.productNo(),
@@ -85,6 +91,8 @@ public record ProductDetailResponse(
                 summary.auctionDate(),
                 summary.category(),
                 product.getDescription(),
+                canViewShipment ? product.getCarrierCode() : null,
+                canViewShipment ? product.getTrackingNo() : null,
                 product.getSeller().getName(),
                 product.getSeller().getMannerTemp(),
                 product.getSeller().getSalesCount(),
@@ -102,8 +110,7 @@ public record ProductDetailResponse(
                 auction != null ? auction.getStatus().name() : null,
                 (auction != null && auction.getPaymentDeadline() != null)
                         ? auction.getPaymentDeadline().format(DATE_TIME_FORMAT) : null,
-                (memberId != null && auction != null && auction.getWinner() != null
-                        && auction.getWinner().getId().equals(memberId)),
+                isWinner,
                 bids.stream().map(BidHistoryResponse::from).toList()
         );
     }

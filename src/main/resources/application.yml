@@ -55,5 +55,5 @@ social:
 
 tracking:
   sweettracker:
-    api-key: ${SWEETTRACKER_API_KEY}
+    api-key: ${SWEETTRACKER_API_KEY:}
     base-url: https://info.sweettracker.co.kr/api/v1

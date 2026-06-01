@@ -67,6 +67,12 @@ public class Product extends BaseTimeEntity {
     @Column(length = 100)
     private String location;
 
+    @Column(name = "carrier_code", length = 30)
+    private String carrierCode;
+
+    @Column(name = "tracking_no", length = 30)
+    private String trackingNo;
+
     @Column(name = "view_count", nullable = false)
     private Long viewCount;
 
@@ -86,7 +92,7 @@ public class Product extends BaseTimeEntity {
     @Builder
     private Product(String productNo, Member seller, Category category, String name,
                     String description, ProductType type, ProductCondition condition,
-                    Long price, String location, String mainImageUrl,
+                    Long price, String location, String carrierCode, String trackingNo, String mainImageUrl,
                     LocalDateTime auctionScheduledAt) {
         this.productNo = productNo;
         this.seller = seller;
@@ -100,6 +106,8 @@ public class Product extends BaseTimeEntity {
         this.status = ProductStatus.PENDING;
         this.price = price;
         this.location = location;
+        this.carrierCode = carrierCode;
+        this.trackingNo = trackingNo;
         this.mainImageUrl = mainImageUrl;
         this.auctionScheduledAt = auctionScheduledAt;
         this.viewCount = 0L;

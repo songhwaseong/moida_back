@@ -16,6 +16,8 @@ public class ProductRequest {
     private String condition;
     private Long price;
     private String location;
+    private String carrierCode;
+    private String trackingNo;
     private String image;
     private List<String> images;
     private Integer mainImageIndex;
