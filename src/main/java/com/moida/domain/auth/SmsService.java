@@ -38,7 +38,7 @@ public class SmsService {
     void init() {
         if (isConfigured()) {
             this.messageService = SolapiClient.INSTANCE.createInstance(apiKey, apiSecret);
-            log.info("[SmsService] 솔라피 초기화 완료 (발신번호={})", sender);
+            log.warn("[SmsService] 솔라피 초기화 완료 )");
         } else {
             log.warn("[SmsService] 솔라피 설정이 비어 있어 개발 모드로 동작합니다. (실제 발송 없이 인증번호를 로그로 출력)");
         }
