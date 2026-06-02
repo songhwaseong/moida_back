@@ -55,7 +55,16 @@ public enum ErrorCode {
     /** 지원하지 않는 택배사 코드인 경우 */
     UNSUPPORTED_CARRIER(HttpStatus.BAD_REQUEST, "T001", "지원하지 않는 택배사입니다."),
     /** 택배사 API 조회에 실패하거나 송장 정보가 없는 경우 */
-    TRACKING_LOOKUP_FAILED(HttpStatus.BAD_REQUEST, "T002", "배송 정보를 조회할 수 없습니다. 택배사와 송장번호를 확인해주세요.");
+    TRACKING_LOOKUP_FAILED(HttpStatus.BAD_REQUEST, "T002", "배송 정보를 조회할 수 없습니다. 택배사와 송장번호를 확인해주세요."),
+
+    // 휴대폰 인증(SMS) 관련 에러 코드
+    SMS_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "SMS001", "인증번호 발송에 실패했습니다. 잠시 후 다시 시도해주세요."),
+    VERIFICATION_NOT_FOUND(HttpStatus.BAD_REQUEST, "SMS002", "인증 요청 내역이 없습니다. 인증번호를 다시 요청해주세요."),
+    VERIFICATION_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "SMS003", "인증번호가 만료되었습니다. 다시 요청해주세요."),
+    VERIFICATION_CODE_MISMATCH(HttpStatus.BAD_REQUEST, "SMS004", "인증번호가 일치하지 않습니다."),
+    VERIFICATION_TOO_MANY_ATTEMPTS(HttpStatus.BAD_REQUEST, "SMS005", "인증 시도 횟수를 초과했습니다. 인증번호를 다시 요청해주세요."),
+    VERIFICATION_RESEND_COOLDOWN(HttpStatus.BAD_REQUEST, "SMS006", "잠시 후 다시 시도해주세요."),
+    PHONE_NOT_VERIFIED(HttpStatus.BAD_REQUEST, "SMS007", "휴대폰 인증을 완료해주세요.");
 
     private final HttpStatus status;
     private final String code;

@@ -44,6 +44,18 @@ public class MemberService {
         return memberRepository.countByNickname(nickname);
     }
 
+    public Member findActiveByNameAndPhone(String name, String phone) {
+        String normalizedName = normalizeRequiredText(name);
+        String normalizedPhone = normalizePhone(phone);
+        if (normalizedName == null || normalizedPhone.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "이름과 휴대폰 번호를 입력해주세요.");
+        }
+        return memberRepository.findAllByNameAndStatus(normalizedName, MemberStatus.ACTIVE).stream()
+                .filter(member -> normalizedPhone.equals(normalizePhone(member.getPhone())))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND, "일치하는 회원 정보를 찾을 수 없습니다."));
+    }
+
 
     @Transactional
     public void completeSocialProfile(String email, String nickname, String phone) {
@@ -161,6 +173,17 @@ public class MemberService {
         }
         String normalized = value.trim();
         return normalized.length() > maxLength ? normalized.substring(0, maxLength) : normalized;
+    }
+
+    private String normalizeRequiredText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private String normalizePhone(String phone) {
+        return phone == null ? "" : phone.replaceAll("[^0-9]", "");
     }
 
     public MemberProfileResponse getMemberProfile(Long memberId) {

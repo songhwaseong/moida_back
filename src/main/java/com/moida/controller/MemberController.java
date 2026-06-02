@@ -9,6 +9,7 @@ import com.moida.common.response.ApiResponse;
 import com.moida.common.response.LoginResponse;
 import com.moida.common.response.RefreshTokenResponse;
 import com.moida.security.CustomUserDetails;
+import com.moida.domain.auth.PhoneVerificationService;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberService;
 import com.moida.security.JwtTokenProvider;
@@ -42,6 +43,7 @@ public class MemberController {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final SocialLoginService socialLoginService; // 소셜 로그인 처리 서비스
+    private final PhoneVerificationService phoneVerificationService; // 휴대폰 인증 확인
     //
 
     @PostMapping("/login")
@@ -127,6 +129,11 @@ public class MemberController {
 
         if(memberService.existsByEmail(request.getEmail())){
             throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
+        }
+
+        // 휴대폰 인증 완료 여부 확인 (인증번호 검증을 통과한 번호만 가입 허용)
+        if (!phoneVerificationService.isVerified(request.getPhone())) {
+            throw new BusinessException(ErrorCode.PHONE_NOT_VERIFIED);
         }
 
         memberService.signup(request);

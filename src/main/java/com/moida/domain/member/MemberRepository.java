@@ -7,7 +7,6 @@ import org.springframework.data.repository.query.Param;
 
 import jakarta.persistence.LockModeType;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.List;
 
@@ -16,6 +15,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findByEmail(String email);
 
     Optional<Member> findByMemberNo(String memberNo);
+
+    List<Member> findAllByNameAndStatus(String name, MemberStatus status);
 
     /**
      * 회원 ID로 회원 정보를 조회하며, 비관적 쓰기 락(Pessimistic Write Lock)을 획득합니다.

@@ -57,3 +57,10 @@ tracking:
   sweettracker:
     api-key: ${SWEETTRACKER_API_KEY:}
     base-url: https://info.sweettracker.co.kr/api/v1
+
+# 휴대폰 인증(SMS) — 솔라피. 키/발신번호는 환경변수로 주입한다.
+# 값이 비어 있으면 SmsService 가 개발 모드로 동작(실제 발송 없이 인증번호를 로그로 출력)한다.
+solapi:
+  api-key: ${SOLAPI_API_KEY:}
+  api-secret: ${SOLAPI_API_SECRET:}
+  sender: ${SOLAPI_SENDER:}
