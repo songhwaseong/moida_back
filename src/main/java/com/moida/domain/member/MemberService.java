@@ -206,4 +206,11 @@ public class MemberService {
         }
         member.changePassword(passwordEncoder.encode(request.getNewPassword()));
     }
+
+    @Transactional
+    public void resetPassword(String email, String newPassword) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        member.changePassword(passwordEncoder.encode(newPassword));
+    }
 }
