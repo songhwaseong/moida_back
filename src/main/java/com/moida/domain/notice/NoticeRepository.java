@@ -10,5 +10,9 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
 
     List<Notice> findAllByIsPinnedTrueOrderByCreatedAtDesc();
 
+    List<Notice> findAllByStatusOrderByIsPinnedDescCreatedAtDesc(Notice.NoticeStatus status);
+
+    List<Notice> findAllByOrderByIsPinnedDescCreatedAtDesc();
+
     Page<Notice> findAll(Pageable pageable);
 }

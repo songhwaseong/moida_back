@@ -73,7 +73,9 @@ public class SecurityConfig {
                                 "/api/auctions/**",
                                 "/api/categories/**",
                                 "/api/notices/**",
-                                "/api/banners/**"
+                                "/api/terms/**",
+                                "/api/banners/**",
+                                "/api/faqs/**"
                         ).permitAll()
                         // 관리자 전용
                         .requestMatchers("/api/admin/members/*/role").hasRole("ADMIN")
@@ -86,3 +88,4 @@ public class SecurityConfig {
         return http.build();
     }
 }
+
