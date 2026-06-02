@@ -75,7 +75,8 @@ public class SecurityConfig {
                                 "/api/notices/**",
                                 "/api/terms/**",
                                 "/api/banners/**",
-                                "/api/faqs/**"
+                                "/api/faqs/**",
+                                "/api/guides/**"
                         ).permitAll()
                         // 관리자 전용
                         .requestMatchers("/api/admin/members/*/role").hasRole("ADMIN")

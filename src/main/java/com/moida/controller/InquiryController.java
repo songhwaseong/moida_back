@@ -22,9 +22,11 @@ public class InquiryController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<InquiryResponse>>> getProductInquiries(
-            @PathVariable Long productId
+            @PathVariable Long productId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        return ResponseEntity.ok(ApiResponse.success(inquiryService.getProductInquiries(productId)));
+        Long memberId = userDetails != null ? userDetails.getMemberId() : null;
+        return ResponseEntity.ok(ApiResponse.success(inquiryService.getProductInquiries(productId, memberId)));
     }
 
     @PostMapping

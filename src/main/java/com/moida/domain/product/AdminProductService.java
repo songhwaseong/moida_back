@@ -36,6 +36,8 @@ public class AdminProductService {
     private static final int DEFAULT_AUCTION_DAYS = 7;
     /** 최소 호가 단위 기본값. 등록 시 입력값을 저장하지 않으므로 보수적으로 1,000원으로 둔다. */
     private static final long DEFAULT_MIN_BID_UNIT = 1_000L;
+    /** 경매예정(SCHEDULED) 진입 후 자동으로 LIVE 로 전환되기까지의 대기 시간(시간). */
+    private static final int AUTO_GO_LIVE_DELAY_HOURS = 24;
 
     /** 전체 상품 목록 (삭제 상태 제외) */
     @Transactional(readOnly = true)
@@ -104,11 +106,36 @@ public class AdminProductService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
         product.changeStatus(status);
 
+        // 경매예정 진입 시 자동 LIVE 전환 예약 시각(now + 24h)을 기록한다.
+        // 관리자가 그 전에 수동으로 LIVE 로 올리면, LIVE 가 된 상품은 스케줄러 조회 대상에서 빠진다.
+        if (status == ProductStatus.SCHEDULED) {
+            product.scheduleAuctionAt(LocalDateTime.now().plusHours(AUTO_GO_LIVE_DELAY_HOURS));
+        }
+
         // SCHEDULED → LIVE 승인 시점에 Auction row 가 비어 있으면 신규 생성한다.
         // (이미 존재한다면 uk_auction_product 제약으로 중복이 방지되므로 그대로 둔다.)
         if (status == ProductStatus.LIVE) {
             ensureAuctionForLive(product);
         }
+    }
+
+    /**
+     * 스케줄러 전용: 예약 시각이 지난 경매예정 상품을 LIVE 로 자동 전환한다.
+     * 이미 LIVE 등 다른 상태로 바뀐 상품은 건너뛰어(idempotent) 중복 전환을 막는다.
+     */
+    @Transactional
+    public void activateScheduledProduct(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        // 관리자가 먼저 수동 전환했거나 숨김/삭제된 경우 → 자동 전환하지 않는다.
+        if (product.getStatus() != ProductStatus.SCHEDULED) {
+            return;
+        }
+
+        product.changeStatus(ProductStatus.LIVE);
+        ensureAuctionForLive(product);
+        log.info("[AdminProductService] auto activate productId={} → LIVE", productId);
     }
 
     /** 경매 시작 시점에 Auction 레코드를 생성한다. 이미 있으면 noop. */

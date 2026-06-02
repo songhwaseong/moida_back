@@ -140,6 +140,12 @@ public class Product extends BaseTimeEntity {
         this.status = status;
     }
 
+    // 경매예정(SCHEDULED) 진입 시 자동 LIVE 전환 예약 시각을 기록한다.
+    // 스케줄러가 이 시각을 지난 SCHEDULED 상품을 LIVE 로 올린다.
+    public void scheduleAuctionAt(LocalDateTime goLiveAt) {
+        this.auctionScheduledAt = goLiveAt;
+    }
+
     public void increaseViewCount() { this.viewCount++; }
     public void increaseLikeCount() { this.likeCount++; }
     public void decreaseLikeCount() {
@@ -151,6 +157,21 @@ public class Product extends BaseTimeEntity {
     public void addImage(ProductImage image) {
         this.images.add(image);
         image.assignProduct(this);
+    }
+
+    // 상품 수정 시 갤러리 전체를 교체한다. orphanRemoval=true 이므로 비우면 기존 행이 삭제된다.
+    public void clearImages() {
+        this.images.clear();
+    }
+
+    // 등록 단계에서 보관한 최소 호가단위를 수정 단계에서 갱신한다.
+    public void changeMinBidUnit(Long minBidUnit) {
+        if (minBidUnit != null) this.minBidUnit = minBidUnit;
+    }
+
+    // 즉시낙찰가는 선택값이라 null 로 설정하면 즉시낙찰을 사용하지 않는 것으로 처리한다.
+    public void changeImmediatePrice(Long immediatePrice) {
+        this.immediatePrice = immediatePrice;
     }
 
     public boolean isOwnedBy(Long memberId) {

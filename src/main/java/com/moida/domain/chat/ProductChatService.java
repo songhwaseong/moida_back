@@ -46,8 +46,10 @@ public class ProductChatService {
     // 응답에 실제 방 상태를 포함해 종료된 상품은 읽기 전용으로 보여준다.
     @Transactional(readOnly = true)
     public ProductChatMessagesResponse getMessages(Long productId, Long currentMemberId, Integer size) {
-        Product product = productRepository.findVisibleProductDetail(productId)
+        // 상세 조회 정책과 동일하게 본인 PENDING/HIDDEN 도 허용한다.
+        Product product = productRepository.findOwnProductDetail(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+        assertVisibleFor(product, currentMemberId);
         ProductChatRoomStatus derivedStatus = deriveRoomStatus(product, null);
 
         return productChatRoomRepository.findByProductId(productId)
@@ -70,8 +72,10 @@ public class ProductChatService {
     // 검증, 방 생성, 도배 방지, 저장, 캐시 무효화를 한곳에서 처리한다.
     @Transactional
     public ProductChatMessageResponse createMessage(Long productId, Long memberId, ProductChatMessageRequest request) {
-        Product product = productRepository.findVisibleProductDetail(productId)
+        // 상세 조회 정책과 동일하게 본인 PENDING/HIDDEN 도 허용한다.
+        Product product = productRepository.findOwnProductDetail(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+        assertVisibleFor(product, memberId);
         Member sender = memberRepository.findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
@@ -132,6 +136,17 @@ public class ProductChatService {
     private int normalizeSize(Integer size) {
         if (size == null) return DEFAULT_MESSAGE_SIZE;
         return Math.max(1, Math.min(size, MAX_MESSAGE_SIZE));
+    }
+
+    // ProductService.getProduct 와 동일한 가시성 정책.
+    // DELETED 는 모두 차단, PENDING/HIDDEN 은 본인만 허용한다.
+    private void assertVisibleFor(Product product, Long memberId) {
+        ProductStatus status = product.getStatus();
+        boolean isOwner = memberId != null && product.isOwnedBy(memberId);
+        if (status == ProductStatus.DELETED
+                || ((status == ProductStatus.PENDING || status == ProductStatus.HIDDEN) && !isOwner)) {
+            throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
+        }
     }
 
     private ProductChatRoomStatus deriveRoomStatus(Product product, ProductChatRoom room) {

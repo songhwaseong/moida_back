@@ -14,6 +14,7 @@ import com.moida.domain.category.CategoryRepository;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
 import com.moida.common.request.ProductRequest;
+import com.moida.common.request.ProductUpdateRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -38,6 +39,14 @@ import java.util.stream.Collectors;
 public class ProductService {
 
     private static final Set<String> SUPPORTED_CARRIER_CODES = Set.of("01", "04", "05", "06", "08", "11", "12", "23");
+
+    // 판매자가 직접 수정할 수 있는 상품 상태(경매예정/유찰/숨김).
+    private static final Set<ProductStatus> USER_EDITABLE_STATUSES =
+            Set.of(ProductStatus.SCHEDULED, ProductStatus.FAILED, ProductStatus.HIDDEN);
+    // 수정 시 사용자가 지정할 수 있는 상태(승인요청=PENDING / 숨김=HIDDEN). 경매예정·진행중·낙찰 등은 관리자·시스템이 관리한다.
+    // 상품을 수정하면 다시 관리자 승인을 받도록 PENDING 으로 되돌릴 수 있다.
+    private static final Set<ProductStatus> USER_SETTABLE_STATUSES =
+            Set.of(ProductStatus.PENDING, ProductStatus.HIDDEN);
 
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
@@ -68,7 +77,7 @@ public class ProductService {
                 .format(DateTimeFormatter.ofPattern("yyyyMMdd"))
                 + String.format("%05d", productRepository.count() + 1);
 
-        List<String> requestImages = resolveRequestImages(request);
+        List<String> requestImages = resolveRequestImages(request.getImages(), request.getImage());
         int mainImageIndex = resolveMainImageIndex(request.getMainImageIndex(), requestImages.size());
         // mainImageUrl drives list thumbnails; product_images keeps the full detail gallery.
         String mainImageUrl = requestImages.isEmpty() ? null : requestImages.get(mainImageIndex);
@@ -114,6 +123,80 @@ public class ProductService {
 
         return saved.getId(); // 저장된 상품 ID 반환
     }
+    // 판매자 본인이 자신의 상품을 수정한다.
+    // 수정 가능한 상태(경매예정/유찰/숨김)만 허용하고, 상태 변경은 노출/숨김 토글(SCHEDULED/HIDDEN)로 제한한다.
+    // (LIVE/SOLD/PENDING/DELETED 는 진행 중이거나 검수/종료 상태라 사용자 임의 수정을 막는다.)
+    @Transactional
+    public Long updateMyProduct(Long productId, Long memberId, ProductUpdateRequest request) {
+        Product product = productRepository.findOwnProductDetail(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        if (!product.isOwnedBy(memberId)) {
+            throw new BusinessException(ErrorCode.NOT_PRODUCT_OWNER);
+        }
+        if (!USER_EDITABLE_STATUSES.contains(product.getStatus())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "경매예정·유찰·숨김 상태의 상품만 수정할 수 있습니다.");
+        }
+
+        Category category = null;
+        if (request.getCategory() != null && !request.getCategory().isBlank()) {
+            category = categoryRepository.findByNameAndIsActiveTrue(request.getCategory())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT, "존재하지 않는 카테고리입니다."));
+        }
+
+        // null 필드는 Product.update 에서 건너뛰므로 전달된 값만 반영된다.
+        product.update(
+                request.getName(),
+                request.getDescription(),
+                category,
+                request.toProductCondition(),
+                request.getPrice(),
+                request.getLocation()
+        );
+        product.changeMinBidUnit(request.getMinBidUnit());
+        product.changeImmediatePrice(request.getImmediatePrice());
+
+        // 이미지가 전달된 경우에만 갤러리 전체를 교체한다. (빈 배열이면 기존 이미지 유지)
+        List<String> requestImages = resolveRequestImages(request.getImages(), null);
+        if (!requestImages.isEmpty()) {
+            int mainImageIndex = resolveMainImageIndex(request.getMainImageIndex(), requestImages.size());
+            product.clearImages();
+            for (int i = 0; i < requestImages.size(); i++) {
+                product.addImage(ProductImage.builder()
+                        .url(requestImages.get(i))
+                        .displayOrder(i)
+                        .isMain(i == mainImageIndex)
+                        .build());
+            }
+            product.changeMainImage(requestImages.get(mainImageIndex));
+        }
+
+        ProductStatus targetStatus = parseUserSettableStatus(request.getStatus());
+        if (targetStatus != null) {
+            product.changeStatus(targetStatus);
+        }
+
+        log.info("[ProductService] updateMyProduct productId={}, memberId={}, status={}",
+                product.getId(), memberId, product.getStatus());
+        return product.getId();
+    }
+
+    private ProductStatus parseUserSettableStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        ProductStatus parsed;
+        try {
+            parsed = ProductStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "유효하지 않은 상품 상태입니다.");
+        }
+        if (!USER_SETTABLE_STATUSES.contains(parsed)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "변경할 수 없는 상품 상태입니다.");
+        }
+        return parsed;
+    }
+
     @Transactional
     public void approveProduct(Long productId) {
         Product product = productRepository.findById(productId)
@@ -323,16 +406,16 @@ public class ProductService {
         return value.trim();
     }
 
-    private List<String> resolveRequestImages(ProductRequest request) {
-        List<String> images = request.getImages() == null ? Collections.emptyList() : request.getImages();
+    private List<String> resolveRequestImages(List<String> images, String legacySingleImage) {
+        List<String> source = images == null ? Collections.emptyList() : images;
         // Support both the new images array and the legacy single image field.
-        List<String> normalized = images.stream()
+        List<String> normalized = source.stream()
                 .filter(image -> image != null && !image.isBlank())
                 .limit(10)
                 .collect(Collectors.toCollection(ArrayList::new));
 
-        if (normalized.isEmpty() && request.getImage() != null && !request.getImage().isBlank()) {
-            normalized.add(request.getImage());
+        if (normalized.isEmpty() && legacySingleImage != null && !legacySingleImage.isBlank()) {
+            normalized.add(legacySingleImage);
         }
 
         return normalized;

@@ -8,6 +8,7 @@ import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
 import com.moida.domain.product.Product;
 import com.moida.domain.product.ProductRepository;
+import com.moida.domain.product.ProductStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,10 +25,18 @@ public class InquiryService {
     private final MemberRepository memberRepository;
 
     @Transactional(readOnly = true)
-    public List<InquiryResponse> getProductInquiries(Long productId) {
-        // Validate that the product is visible before exposing its inquiry list.
-        productRepository.findVisibleProductDetail(productId)
+    public List<InquiryResponse> getProductInquiries(Long productId, Long memberId) {
+        // 상세 조회 정책과 동일하게 본인 PENDING/HIDDEN 도 허용한다.
+        // (findVisibleProductDetail 만 쓰면 본인 PENDING/HIDDEN 상품의 문의 목록이 항상 404 가 된다.)
+        Product product = productRepository.findOwnProductDetail(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        ProductStatus status = product.getStatus();
+        boolean isOwner = memberId != null && product.isOwnedBy(memberId);
+        if (status == ProductStatus.DELETED
+                || ((status == ProductStatus.PENDING || status == ProductStatus.HIDDEN) && !isOwner)) {
+            throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
+        }
 
         return inquiryRepository.findAllByProductIdOrderByCreatedAtDesc(productId).stream()
                 .map(InquiryResponse::from)

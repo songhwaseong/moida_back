@@ -1,6 +1,7 @@
 package com.moida.controller;
 
 import com.moida.common.request.ProductRequest;
+import com.moida.common.request.ProductUpdateRequest;
 import com.moida.common.response.ApiResponse;
 import com.moida.common.response.MyBidResponse;
 import com.moida.common.response.ProductDetailResponse;
@@ -97,5 +98,21 @@ public class ProductController {
         Long productId = productService.create(request, userDetails.getMemberId());
         log.info("[ProductController] POST /api/products created productId={}", productId);
         return ResponseEntity.ok(ApiResponse.success(productId, "상품이 등록되었습니다."));
+    }
+
+    /**
+     * 상품 수정 (판매자 본인 전용)
+     * PUT /api/products/{productId}
+     * Authorization: Bearer {JWT 토큰} 필요
+     */
+    @PutMapping("/{productId}")
+    public ResponseEntity<ApiResponse<Long>> update(
+            @PathVariable Long productId,
+            @RequestBody ProductUpdateRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        log.info("[ProductController] PUT /api/products/{} memberId={}", productId, userDetails.getMemberId());
+        Long updatedId = productService.updateMyProduct(productId, userDetails.getMemberId(), request);
+        return ResponseEntity.ok(ApiResponse.success(updatedId, "상품이 수정되었습니다."));
     }
 }

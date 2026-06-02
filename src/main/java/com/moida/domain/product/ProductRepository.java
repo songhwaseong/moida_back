@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.List;
 
@@ -14,6 +15,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Optional<Product> findByProductNo(String productNo);
 
     Page<Product> findAllByStatus(ProductStatus status, Pageable pageable);
+
+    // 자동 LIVE 전환 대상: 예약 시각(auctionScheduledAt)이 지난 경매예정 상품.
+    // auctionScheduledAt 이 null 인 행은 조건에 걸리지 않아 자연히 제외된다.
+    List<Product> findAllByStatusAndAuctionScheduledAtBefore(ProductStatus status, LocalDateTime time);
 
     Page<Product> findAllBySellerId(Long sellerId, Pageable pageable);
 
