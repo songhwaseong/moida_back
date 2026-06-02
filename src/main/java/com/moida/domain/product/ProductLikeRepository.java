@@ -15,4 +15,6 @@ public interface ProductLikeRepository extends JpaRepository<ProductLike, Long> 
     void deleteByProductIdAndMemberId(Long productId, Long memberId);
 
     Page<ProductLike> findAllByMemberId(Long memberId, Pageable pageable);
+
+    long countByMemberId(Long memberId);
 }

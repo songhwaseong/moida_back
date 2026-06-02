@@ -10,21 +10,21 @@ public class MemberProfileResponse {
     private String memberNo;
     private String phone;
     private Double mannerTemp;
-    private Integer salesCount;
-    private Integer purchaseCount;
+    private Integer winCount;
     private Integer bidCount;
+    private Integer wishCount;
     private String avatar;
     private String socialLogin;
 
-    public MemberProfileResponse(Member member) {
+    public MemberProfileResponse(Member member, int winCount, int bidCount, int wishCount) {
         this.nickname = member.getNickname();
         this.email = member.getEmail();
         this.memberNo = member.getMemberNo();
         this.phone = member.getPhone();
         this.mannerTemp = member.getMannerTemp();
-        this.salesCount = member.getSalesCount();
-        this.purchaseCount = member.getPurchaseCount();
-        this.bidCount = member.getBidCount();
+        this.winCount = winCount;
+        this.bidCount = bidCount;
+        this.wishCount = wishCount;
         this.avatar = member.getAvatar();
         this.socialLogin = member.getSocialLogin();
     }

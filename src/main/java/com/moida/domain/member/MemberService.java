@@ -9,6 +9,9 @@ import com.moida.common.request.UpdateProfileRequest;
 import com.moida.common.response.AccountDeactivationInfoResponse;
 import com.moida.common.response.AdminDeactivatedMemberResponse;
 import com.moida.common.response.MemberProfileResponse;
+import com.moida.domain.auction.AuctionRepository;
+import com.moida.domain.auction.BidRepository;
+import com.moida.domain.product.ProductLikeRepository;
 import com.moida.domain.wallet.WalletTransaction;
 import com.moida.domain.wallet.WalletTransactionRepository;
 import jakarta.transaction.Transactional;
@@ -31,6 +34,9 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final AuctionRepository auctionRepository;
+    private final BidRepository bidRepository;
+    private final ProductLikeRepository productLikeRepository;
 
     public Optional<Member> findByEmail(String email) {
         return memberRepository.findByEmail(email);
@@ -187,7 +193,11 @@ public class MemberService {
     }
 
     public MemberProfileResponse getMemberProfile(Long memberId) {
-        return new MemberProfileResponse(findById(memberId));
+        Member member = findById(memberId);
+        int winCount  = (int) auctionRepository.countByWinnerId(memberId);
+        int bidCount  = (int) bidRepository.countByBidderId(memberId);
+        int wishCount = (int) productLikeRepository.countByMemberId(memberId);
+        return new MemberProfileResponse(member, winCount, bidCount, wishCount);
     }
 
     @Transactional

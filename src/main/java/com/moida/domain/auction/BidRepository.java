@@ -40,4 +40,6 @@ public interface BidRepository extends JpaRepository<Bid, Long> {
     Optional<Bid> findFirstByAuctionIdOrderByAmountDesc(Long auctionId);
 
     long countByAuctionId(Long auctionId);
+
+    long countByBidderId(Long bidderId);
 }
