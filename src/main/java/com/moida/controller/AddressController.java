@@ -22,8 +22,7 @@ import java.util.List;
 
 /**
  * 회원 배송지 주소 관련 API를 제공하는 컨트롤러
- *
- */
+ * */
 @RestController
 @RequestMapping("/api/addresses")
 @RequiredArgsConstructor
