@@ -7,6 +7,8 @@ plugins {
 group = 'com.moida'
 version = '0.0.1-SNAPSHOT'
 
+ext['kotlin-serialization.version'] = '1.9.0'
+
 java {
     sourceCompatibility = '17'
     targetCompatibility = '17'
@@ -54,6 +56,7 @@ dependencies {
 
     //문자발송
     implementation 'com.solapi:sdk:1.0.3'
+    implementation platform('org.jetbrains.kotlinx:kotlinx-serialization-bom:1.9.0')
 
     // 파일 업로드 / 이미지 처리 (S3 사용 시 추가)
     // implementation 'software.amazon.awssdk:s3:2.27.21'
