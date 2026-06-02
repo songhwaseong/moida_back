@@ -186,6 +186,9 @@ jobs:
               -e GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
               -e GOOGLE_REDIRECT_URI="${{ secrets.GOOGLE_REDIRECT_URI }}" \
               -e SWEETTRACKER_API_KEY="${{ secrets.SWEETTRACKER_API_KEY }}" \
+              -e SOLAPI_API_KEY="${{ secrets.SOLAPI_API_KEY }}" \
+              -e SOLAPI_API_SECRET="${{ secrets.SOLAPI_API_SECRET }}" \
+              -e SOLAPI_SENDER="${{ secrets.SOLAPI_SENDER }}" \
               "$IMAGE"
 
             sleep 10
