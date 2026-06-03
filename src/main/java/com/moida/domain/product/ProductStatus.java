@@ -6,6 +6,9 @@ public enum ProductStatus {
     LIVE,         // 경매중
     SOLD,         // 낙찰
     FAILED,       // 유찰
+    RETURN_REQUESTED,  // 환수요청
+    RETURN_SHIPPING,   // 반송중
+    RETURN_COMPLETED,  // 환수완료
     HIDDEN,       // 숨김
     DELETED       // 삭제
 }

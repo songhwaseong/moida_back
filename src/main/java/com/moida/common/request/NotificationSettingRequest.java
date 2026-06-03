@@ -5,6 +5,9 @@ public record NotificationSettingRequest(
         boolean priceEnabled,
         boolean chatEnabled,
         boolean tradeEnabled,
-        boolean marketingEnabled
+        boolean marketingEnabled,
+        boolean productStatusEnabled,
+        boolean inquiryEnabled,
+        boolean auctionResultEnabled
 ) {
 }

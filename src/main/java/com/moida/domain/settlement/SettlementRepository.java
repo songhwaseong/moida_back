@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface SettlementRepository extends JpaRepository<Settlement, Long> {
 
@@ -15,6 +16,10 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
 
     // 한 경매에 정산 row 가 이미 존재하는지 확인 (낙찰 처리 중복 방지)
     boolean existsByAuctionId(Long auctionId);
+
+    Optional<Settlement> findByAuctionId(Long auctionId);
+
+    List<Settlement> findAllByAuctionIdIn(List<Long> auctionIds);
 
     // 관리자 정산 관리 화면용 전체 조회.
     // seller/buyer/auction.product 까지 fetch join 해 테이블 표시 시 N+1 을 막는다.

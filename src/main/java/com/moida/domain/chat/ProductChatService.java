@@ -139,12 +139,16 @@ public class ProductChatService {
     }
 
     // ProductService.getProduct 와 동일한 가시성 정책.
-    // DELETED 는 모두 차단, PENDING/HIDDEN 은 본인만 허용한다.
+    // DELETED 는 모두 차단, PENDING/HIDDEN/환수 진행 상태는 본인만 허용한다.
     private void assertVisibleFor(Product product, Long memberId) {
         ProductStatus status = product.getStatus();
         boolean isOwner = memberId != null && product.isOwnedBy(memberId);
         if (status == ProductStatus.DELETED
-                || ((status == ProductStatus.PENDING || status == ProductStatus.HIDDEN) && !isOwner)) {
+                || ((status == ProductStatus.PENDING
+                || status == ProductStatus.HIDDEN
+                || status == ProductStatus.RETURN_REQUESTED
+                || status == ProductStatus.RETURN_SHIPPING
+                || status == ProductStatus.RETURN_COMPLETED) && !isOwner)) {
             throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
         }
     }
@@ -171,6 +175,9 @@ public class ProductChatService {
     private boolean isClosedProduct(Product product) {
         return product.getStatus() == ProductStatus.SOLD
                 || product.getStatus() == ProductStatus.FAILED
+                || product.getStatus() == ProductStatus.RETURN_REQUESTED
+                || product.getStatus() == ProductStatus.RETURN_SHIPPING
+                || product.getStatus() == ProductStatus.RETURN_COMPLETED
                 || product.getStatus() == ProductStatus.HIDDEN
                 || product.getStatus() == ProductStatus.DELETED;
     }

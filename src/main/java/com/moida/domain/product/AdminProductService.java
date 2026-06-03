@@ -10,6 +10,8 @@ import com.moida.domain.auction.Auction;
 import com.moida.domain.auction.AuctionRepository;
 import com.moida.domain.category.Category;
 import com.moida.domain.category.CategoryRepository;
+import com.moida.domain.notification.Notification;
+import com.moida.domain.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,13 +33,14 @@ public class AdminProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final AuctionRepository auctionRepository;
+    private final NotificationService notificationService;
 
     /** 경매 기간(시작 ~ 종료) — 별도 입력값이 없으므로 일괄 7일로 고정한다. */
     private static final int DEFAULT_AUCTION_DAYS = 7;
     /** 최소 호가 단위 기본값. 등록 시 입력값을 저장하지 않으므로 보수적으로 1,000원으로 둔다. */
     private static final long DEFAULT_MIN_BID_UNIT = 1_000L;
-    /** 경매예정(SCHEDULED) 진입 후 자동으로 LIVE 로 전환되기까지의 대기 시간(시간). */
-    private static final int AUTO_GO_LIVE_DELAY_HOURS = 24;
+    /** 시연용: 경매예정(SCHEDULED) 진입 후 자동으로 LIVE 로 전환되기까지의 대기 시간(초). */
+    private static final int AUTO_GO_LIVE_DELAY_SECONDS = 10;
 
     /** 전체 상품 목록 (삭제 상태 제외) */
     @Transactional(readOnly = true)
@@ -104,19 +107,45 @@ public class AdminProductService {
     public void updateStatus(Long productId, ProductStatus status) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+        ProductStatus previousStatus = product.getStatus();
         product.changeStatus(status);
 
         // 경매예정 진입 시 자동 LIVE 전환 예약 시각(now + 24h)을 기록한다.
         // 관리자가 그 전에 수동으로 LIVE 로 올리면, LIVE 가 된 상품은 스케줄러 조회 대상에서 빠진다.
         if (status == ProductStatus.SCHEDULED) {
-            product.scheduleAuctionAt(LocalDateTime.now().plusHours(AUTO_GO_LIVE_DELAY_HOURS));
+            product.scheduleAuctionAt(LocalDateTime.now().plusSeconds(AUTO_GO_LIVE_DELAY_SECONDS));
+        }
+
+        if (status == ProductStatus.RETURN_REQUESTED
+                || status == ProductStatus.RETURN_SHIPPING
+                || status == ProductStatus.RETURN_COMPLETED
+                || status == ProductStatus.HIDDEN
+                || status == ProductStatus.DELETED) {
+            product.scheduleAuctionAt(null);
         }
 
         // SCHEDULED → LIVE 승인 시점에 Auction row 가 비어 있으면 신규 생성한다.
         // (이미 존재한다면 uk_auction_product 제약으로 중복이 방지되므로 그대로 둔다.)
         if (status == ProductStatus.LIVE) {
-            ensureAuctionForLive(product);
+            Auction auction = ensureAuctionForLive(product);
+            if (previousStatus == ProductStatus.SCHEDULED) {
+                notifyAuctionStarted(product, auction);
+            }
         }
+
+        if (previousStatus == ProductStatus.PENDING && status == ProductStatus.SCHEDULED) {
+            notifyProductApproved(product);
+        }
+    }
+
+    private void notifyProductApproved(Product product) {
+        notificationService.createAndPush(
+                product.getSeller(),
+                Notification.NotificationType.PRODUCT_APPROVED,
+                "상품 승인이 완료됐어요",
+                String.format("'%s' 상품이 승인되어 경매예정 상태로 변경됐습니다. 경매 시작 전까지 내 등록 상품에서 상태를 확인할 수 있어요.", product.getName()),
+                "/products/" + product.getId()
+        );
     }
 
     /**
@@ -134,15 +163,17 @@ public class AdminProductService {
         }
 
         product.changeStatus(ProductStatus.LIVE);
-        ensureAuctionForLive(product);
+        Auction auction = ensureAuctionForLive(product);
+        notifyAuctionStarted(product, auction);
         log.info("[AdminProductService] auto activate productId={} → LIVE", productId);
     }
 
     /** 경매 시작 시점에 Auction 레코드를 생성한다. 이미 있으면 noop. */
-    private void ensureAuctionForLive(Product product) {
-        if (auctionRepository.findByProductId(product.getId()).isPresent()) {
-            return;
-        }
+    private Auction ensureAuctionForLive(Product product) {
+        return auctionRepository.findByProductId(product.getId()).orElseGet(() -> createAuction(product));
+    }
+
+    private Auction createAuction(Product product) {
         LocalDateTime now = LocalDateTime.now();
         // 등록 시점에 Product 에 보관해둔 입력값(immediatePrice / minBidUnit)을 사용한다.
         // immediatePrice 는 선택값이라 null 허용, minBidUnit 은 누락 시 DEFAULT 로 폴백한다.
@@ -158,9 +189,20 @@ public class AdminProductService {
                 .build();
         // 생성 직후 LIVE 로 전환 (Auction 기본 status 는 READY)
         auction.start();
-        auctionRepository.save(auction);
+        Auction saved = auctionRepository.save(auction);
         log.info("[AdminProductService] auction created productId={}, auctionNo={}, endAt={}",
-                product.getId(), auction.getAuctionNo(), auction.getEndAt());
+                product.getId(), saved.getAuctionNo(), saved.getEndAt());
+        return saved;
+    }
+
+    private void notifyAuctionStarted(Product product, Auction auction) {
+        notificationService.createAndPush(
+                product.getSeller(),
+                Notification.NotificationType.PRODUCT_AUCTION_STARTED,
+                "경매가 시작됐어요",
+                String.format("'%s' 상품 경매가 시작됐습니다. 경매 종료 전까지 입찰 현황을 확인해보세요.", product.getName()),
+                "/auctions/" + auction.getId()
+        );
     }
 
     /** 경매번호 생성: AUC-yyyyMMdd-NNNN. NNNN 은 전체 카운트+1 을 5자리로 패딩. */

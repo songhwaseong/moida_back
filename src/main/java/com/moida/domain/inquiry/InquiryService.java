@@ -6,6 +6,8 @@ import com.moida.common.request.InquiryRequest;
 import com.moida.common.response.InquiryResponse;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
+import com.moida.domain.notification.Notification;
+import com.moida.domain.notification.NotificationService;
 import com.moida.domain.product.Product;
 import com.moida.domain.product.ProductRepository;
 import com.moida.domain.product.ProductStatus;
@@ -23,18 +25,23 @@ public class InquiryService {
     private final InquiryRepository inquiryRepository;
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public List<InquiryResponse> getProductInquiries(Long productId, Long memberId) {
-        // 상세 조회 정책과 동일하게 본인 PENDING/HIDDEN 도 허용한다.
-        // (findVisibleProductDetail 만 쓰면 본인 PENDING/HIDDEN 상품의 문의 목록이 항상 404 가 된다.)
+        // 상세 조회 정책과 동일하게 본인 PENDING/HIDDEN/환수 진행 상품도 허용한다.
+        // (findVisibleProductDetail 만 쓰면 본인 비공개 상품의 문의 목록이 항상 404 가 된다.)
         Product product = productRepository.findOwnProductDetail(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
         ProductStatus status = product.getStatus();
         boolean isOwner = memberId != null && product.isOwnedBy(memberId);
         if (status == ProductStatus.DELETED
-                || ((status == ProductStatus.PENDING || status == ProductStatus.HIDDEN) && !isOwner)) {
+                || ((status == ProductStatus.PENDING
+                || status == ProductStatus.HIDDEN
+                || status == ProductStatus.RETURN_REQUESTED
+                || status == ProductStatus.RETURN_SHIPPING
+                || status == ProductStatus.RETURN_COMPLETED) && !isOwner)) {
             throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
         }
 
@@ -70,6 +77,15 @@ public class InquiryService {
                 .isSecret(request.getIsSecret())
                 .build();
 
-        return InquiryResponse.from(inquiryRepository.save(inquiry));
+        Inquiry saved = inquiryRepository.save(inquiry);
+        notificationService.createAndPush(
+                product.getSeller(),
+                Notification.NotificationType.INQUIRY_NEW,
+                "새 상품 문의가 도착했어요",
+                String.format("'%s' 상품에 새 문의가 등록되었습니다.", product.getName()),
+                "/products/" + product.getId()
+        );
+
+        return InquiryResponse.from(saved);
     }
 }

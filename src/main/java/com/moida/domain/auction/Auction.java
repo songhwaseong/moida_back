@@ -75,6 +75,16 @@ public class Auction extends BaseTimeEntity {
     @Column(name = "payment_deadline")
     private LocalDateTime paymentDeadline;  // 낙찰 후 결제 마감 시각 (AWAITING_PAYMENT 상태에서만 유효)
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_status", length = 30)
+    private DeliveryStatus deliveryStatus;
+
+    @Column(name = "delivery_status_updated_at")
+    private LocalDateTime deliveryStatusUpdatedAt;
+
+    @Column(name = "received_at")
+    private LocalDateTime receivedAt;
+
     @Builder
     private Auction(String auctionNo, Product product, Long startPrice, Long immediatePrice,
                     Long minBidUnit, LocalDateTime startAt, LocalDateTime endAt) {
@@ -149,6 +159,25 @@ public class Auction extends BaseTimeEntity {
 
     public void markSettled() {
         this.settledAt = LocalDateTime.now();
+    }
+
+    public void startDeliveryDemo() {
+        this.deliveryStatus = DeliveryStatus.PAYMENT_COMPLETED;
+        this.deliveryStatusUpdatedAt = LocalDateTime.now();
+    }
+
+    public void updateDeliveryStatus(DeliveryStatus deliveryStatus) {
+        this.deliveryStatus = deliveryStatus;
+        this.deliveryStatusUpdatedAt = LocalDateTime.now();
+    }
+
+    public void confirmReceipt() {
+        if (this.deliveryStatus != DeliveryStatus.DELIVERED) {
+            throw new IllegalStateException("배송완료 상태에서만 수령확인할 수 있습니다.");
+        }
+        this.deliveryStatus = DeliveryStatus.RECEIVED;
+        this.deliveryStatusUpdatedAt = LocalDateTime.now();
+        this.receivedAt = LocalDateTime.now();
     }
 
     public boolean isLive() {

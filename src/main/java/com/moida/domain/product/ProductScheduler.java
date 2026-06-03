@@ -24,12 +24,12 @@ import java.util.List;
 public class ProductScheduler {
 
     /** 스케줄 주기: 1분. 자동 전환이 분 단위 정확도면 충분. */
-    private static final long FIXED_DELAY_MS = 60_000L;
+    private static final long FIXED_DELAY_MS = 10_000L;
 
     private final ProductRepository productRepository;
     private final AdminProductService adminProductService;
 
-    @Scheduled(fixedDelay = FIXED_DELAY_MS, initialDelay = 60_000L)
+    @Scheduled(fixedDelay = FIXED_DELAY_MS, initialDelay = 10_000L)
     public void activateScheduledProducts() {
         LocalDateTime now = LocalDateTime.now();
         List<Product> targets = productRepository.findAllByStatusAndAuctionScheduledAtBefore(

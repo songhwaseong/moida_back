@@ -68,6 +68,15 @@ public class Notification extends BaseTimeEntity {
         INQUIRY_ANSWERED,               // 문의 답변 등록
         CHAT_MESSAGE,                   // 채팅 메시지
         SANCTION,                       // 제재 발생
-        NOTICE                          // 공지사항
+        NOTICE,                         // 공지사항
+        PRODUCT_APPROVED,               // 상품 승인 완료
+        PRODUCT_AUCTION_STARTED,        // 등록 상품 경매 시작
+        PRODUCT_AUCTION_FAILED,         // 등록 상품 유찰
+        PRODUCT_SOLD,                   // 등록 상품 낙찰 (판매자에게)
+        DELIVERY_SHIPPED,               // 시연용 발송 알림
+        DELIVERY_IN_TRANSIT,            // 시연용 배송중 알림
+        DELIVERY_DELIVERED,             // 시연용 배송완료 알림
+        RECEIPT_CONFIRMED,              // 구매자 수령확인
+        SETTLEMENT_PAID                 // 판매자 정산 완료
     }
 }

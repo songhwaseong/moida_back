@@ -42,7 +42,20 @@ public record NotificationResponse(
             return switch (type) {
                 case BID_PLACED, BID_OUTBID, AUCTION_WON, AUCTION_LOST, AUCTION_ENDED -> BID;
                 // 낙찰 후 결제 흐름은 BID(입찰)보다 TRADE(거래)로 묶는 게 사용자 멘탈 모델에 맞다.
-                case AUCTION_WON_PAYMENT_REQUIRED, PAYMENT_COMPLETED, AUCTION_FAILED_BY_NONPAYMENT -> TRADE;
+                case AUCTION_WON_PAYMENT_REQUIRED,
+                        PAYMENT_COMPLETED,
+                        AUCTION_FAILED_BY_NONPAYMENT,
+                        PRODUCT_APPROVED,
+                        PRODUCT_AUCTION_STARTED,
+                        PRODUCT_AUCTION_FAILED,
+                        PRODUCT_SOLD,
+                        DELIVERY_SHIPPED,
+                        DELIVERY_IN_TRANSIT,
+                        DELIVERY_DELIVERED,
+                        RECEIPT_CONFIRMED,
+                        SETTLEMENT_PAID,
+                        INQUIRY_NEW,
+                        INQUIRY_ANSWERED -> TRADE;
                 case CHAT_MESSAGE -> CHAT;
                 default -> SYSTEM;
             };

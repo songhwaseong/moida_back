@@ -8,6 +8,8 @@ import com.moida.common.response.MyBidResponse;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
 import com.moida.domain.member.MemberStatus;
+import com.moida.domain.notification.Notification;
+import com.moida.domain.notification.NotificationService;
 import com.moida.domain.product.Product;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +30,7 @@ public class AuctionBidService {
     private final BidRepository bidRepository;
     private final MemberRepository memberRepository;
     private final AuctionCompletionService completionService;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public List<MyBidResponse> getMyBids(Long memberId) {
@@ -127,6 +130,8 @@ public class AuctionBidService {
             completionService.finalizeWinner(auction, bidder, amount);
         }
 
+        notifySellerBidPlaced(product, auction, bidder, amount);
+
         List<Bid> bidHistory = bidRepository.findHistoryByAuctionId(auction.getId());
         log.info("[AuctionBidService] bid saved productId={}, auctionId={}, bidId={}, bidderId={}, amount={}",
                 productId, auction.getId(), savedBid.getId(), memberId, amount);
@@ -141,5 +146,19 @@ public class AuctionBidService {
 
     private boolean isImmediateBid(long amount, Long immediatePrice) {
         return immediatePrice != null && amount >= immediatePrice;
+    }
+
+    private void notifySellerBidPlaced(Product product, Auction auction, Member bidder, long amount) {
+        Member seller = product.getSeller();
+        if (seller == null) return;
+
+        notificationService.createAndPush(
+                seller,
+                Notification.NotificationType.BID_PLACED,
+                "새 입찰이 들어왔어요",
+                String.format("'%s' 상품에 %s님이 %,d원으로 입찰했습니다.",
+                        product.getName(), bidder.getName(), amount),
+                "/auctions/" + auction.getId()
+        );
     }
 }

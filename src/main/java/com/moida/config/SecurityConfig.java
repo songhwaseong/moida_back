@@ -65,6 +65,7 @@ public class SecurityConfig {
                         // 아래 GET /api/products/** permitAll 규칙보다 먼저 위치해야 매칭 우선순위가 보장된다.
                         .requestMatchers(HttpMethod.GET, "/api/products/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/products/bids/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/products/purchases/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/products/likes").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/inquiries/me").authenticated()
                         // 조회는 비로그인도 가능

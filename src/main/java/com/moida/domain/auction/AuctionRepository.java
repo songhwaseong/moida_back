@@ -25,6 +25,24 @@ public interface AuctionRepository extends JpaRepository<Auction, Long> {
     /** 결제 기한이 지난 AWAITING_PAYMENT 경매 조회 (스케줄러에서 유찰 처리 대상). */
     List<Auction> findAllByStatusAndPaymentDeadlineBefore(AuctionStatus status, LocalDateTime now);
 
+    List<Auction> findAllByStatusAndDeliveryStatusAndDeliveryStatusUpdatedAtBefore(
+            AuctionStatus status,
+            DeliveryStatus deliveryStatus,
+            LocalDateTime now
+    );
+
+    @Query("""
+            select a
+            from Auction a
+            join fetch a.product p
+            join fetch p.category
+            join fetch p.seller
+            where a.winner.id = :memberId
+              and a.status = com.moida.domain.auction.AuctionStatus.SUCCESS
+            order by a.updatedAt desc, a.id desc
+            """)
+    List<Auction> findSuccessfulPurchasesByWinnerId(@Param("memberId") Long memberId);
+
     @Query("select a from Auction a where a.product.id in :productIds")
     List<Auction> findAllByProductIdIn(@Param("productIds") List<Long> productIds);
 

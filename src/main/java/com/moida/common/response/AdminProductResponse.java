@@ -26,7 +26,9 @@ public record AdminProductResponse(
         String description,
         // 관리자 테이블의 송장번호 컬럼/배송조회 모달에 사용. 등록 시 입력값이 없으면 null.
         String carrierCode,
-        String trackingNo
+        String trackingNo,
+        String returnRequestReason,
+        String returnRequestedAt
 ) {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
@@ -38,6 +40,9 @@ public record AdminProductResponse(
             case LIVE -> "경매중";
             case SOLD -> "낙찰";
             case FAILED -> "유찰";
+            case RETURN_REQUESTED -> "환수요청";
+            case RETURN_SHIPPING -> "반송중";
+            case RETURN_COMPLETED -> "환수완료";
             case HIDDEN -> "숨김";
             case DELETED -> "삭제";
         };
@@ -65,7 +70,9 @@ public record AdminProductResponse(
                 product.getCreatedAt() == null ? "-" : product.getCreatedAt().format(DATE_FMT),
                 product.getDescription(),
                 product.getCarrierCode(),
-                product.getTrackingNo()
+                product.getTrackingNo(),
+                product.getReturnRequestReason(),
+                product.getReturnRequestedAt() == null ? null : product.getReturnRequestedAt().format(DATE_FMT)
         );
     }
 }

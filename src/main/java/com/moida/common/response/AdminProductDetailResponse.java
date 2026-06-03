@@ -27,7 +27,9 @@ public record AdminProductDetailResponse(
         long price,
         String status,
         String registeredAt,
-        String description
+        String description,
+        String returnRequestReason,
+        String returnRequestedAt
 ) {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
@@ -59,7 +61,9 @@ public record AdminProductDetailResponse(
                 product.getPrice(),
                 AdminProductResponse.toKorean(product.getStatus()),
                 product.getCreatedAt() == null ? "-" : product.getCreatedAt().format(DATE_FMT),
-                product.getDescription()
+                product.getDescription(),
+                product.getReturnRequestReason(),
+                product.getReturnRequestedAt() == null ? null : product.getReturnRequestedAt().format(DATE_FMT)
         );
     }
 }

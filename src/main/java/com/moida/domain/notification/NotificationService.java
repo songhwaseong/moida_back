@@ -53,7 +53,10 @@ public class NotificationService {
                 request.priceEnabled(),
                 request.chatEnabled(),
                 request.tradeEnabled(),
-                request.marketingEnabled()
+                request.marketingEnabled(),
+                request.productStatusEnabled(),
+                request.inquiryEnabled(),
+                request.auctionResultEnabled()
         );
         return NotificationSettingResponse.from(setting);
     }
@@ -111,6 +114,11 @@ public class NotificationService {
     @Transactional
     public Notification createAndPush(Member to, Notification.NotificationType type,
                                        String title, String content, String linkUrl) {
+        if (!isEnabledFor(to, type)) {
+            log.debug("[NotificationService] skipped by setting memberId={}, type={}", to.getId(), type);
+            return null;
+        }
+
         Notification saved = notificationRepository.save(Notification.builder()
                 .member(to)
                 .type(type)
@@ -133,5 +141,34 @@ public class NotificationService {
                     to.getId(), type, e.getMessage());
         }
         return saved;
+    }
+
+    private boolean isEnabledFor(Member member, Notification.NotificationType type) {
+        NotificationSetting setting = settingRepository.findByMemberId(member.getId())
+                .orElse(null);
+        if (setting == null) {
+            return true;
+        }
+
+        return switch (type) {
+            case BID_PLACED, BID_OUTBID -> setting.isBidEnabled();
+            case CHAT_MESSAGE -> setting.isChatEnabled();
+            case PRODUCT_APPROVED, PRODUCT_AUCTION_STARTED, PRODUCT_AUCTION_FAILED -> setting.isProductStatusEnabled();
+            case INQUIRY_NEW, INQUIRY_ANSWERED -> setting.isInquiryEnabled();
+            case AUCTION_WON,
+                    AUCTION_WON_PAYMENT_REQUIRED,
+                    PRODUCT_SOLD,
+                    PAYMENT_COMPLETED,
+                    AUCTION_FAILED_BY_NONPAYMENT,
+                    AUCTION_LOST,
+                    AUCTION_ENDED,
+                    DELIVERY_SHIPPED,
+                    DELIVERY_IN_TRANSIT,
+                    DELIVERY_DELIVERED,
+                    RECEIPT_CONFIRMED,
+                    SETTLEMENT_PAID -> setting.isAuctionResultEnabled();
+            // 제재/공지 등 운영상 중요한 알림은 설정과 무관하게 보냅니다.
+            case SANCTION, NOTICE -> true;
+        };
     }
 }

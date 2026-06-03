@@ -86,6 +86,12 @@ public class Product extends BaseTimeEntity {
     @Column(name = "auction_scheduled_at")
     private LocalDateTime auctionScheduledAt;
 
+    @Column(name = "return_request_reason", length = 500)
+    private String returnRequestReason;
+
+    @Column(name = "return_requested_at")
+    private LocalDateTime returnRequestedAt;
+
     // 등록 시 입력된 즉시낙찰가/최소 호가단위를 보관한다.
     // SCHEDULED → LIVE 전환 시점에 AdminProductService 가 Auction 엔티티로 옮겨 사용한다.
     // 즉시낙찰가는 선택값이므로 nullable, 최소 호가단위도 누락 시 기본값으로 폴백한다.
@@ -144,6 +150,13 @@ public class Product extends BaseTimeEntity {
     // 스케줄러가 이 시각을 지난 SCHEDULED 상품을 LIVE 로 올린다.
     public void scheduleAuctionAt(LocalDateTime goLiveAt) {
         this.auctionScheduledAt = goLiveAt;
+    }
+
+    public void requestReturn(String reason) {
+        this.status = ProductStatus.RETURN_REQUESTED;
+        this.returnRequestReason = reason;
+        this.returnRequestedAt = LocalDateTime.now();
+        this.auctionScheduledAt = null;
     }
 
     public void increaseViewCount() { this.viewCount++; }

@@ -2,6 +2,7 @@ package com.moida.common.response;
 
 import com.moida.domain.auction.Auction;
 import com.moida.domain.auction.AuctionStatus;
+import com.moida.domain.auction.DeliveryStatus;
 import com.moida.domain.product.Product;
 import com.moida.domain.product.ProductCondition;
 
@@ -34,9 +35,14 @@ public record ProductSummaryResponse(
         Integer bidCount,
         Long timeLeft,
         Boolean isLive,
-        String seller
+        String seller,
+        String auctionStatus,
+        String paymentDeadline,
+        String deliveryStatus,
+        String deliveryStatusLabel
 ) {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+    private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm");
 
     // 프론트 카드 컴포넌트(AuctionCard/ProductCard) 가 기대하는 평탄한 구조로 변환한다.
     // 프로젝트가 경매-only 로 피벗되어 모든 product 를 경매로 취급한다.
@@ -71,8 +77,24 @@ public record ProductSummaryResponse(
                 auction != null ? auction.getBidCount() : 0,
                 auction != null ? Math.max(0, Duration.between(LocalDateTime.now(), auction.getEndAt()).getSeconds()) : 0,
                 liveAuction,
-                product.getSeller().getName()
+                product.getSeller().getName(),
+                auction != null ? auction.getStatus().name() : null,
+                auction != null && auction.getPaymentDeadline() != null
+                        ? auction.getPaymentDeadline().format(DATE_TIME_FORMAT) : null,
+                auction != null && auction.getDeliveryStatus() != null ? auction.getDeliveryStatus().name() : null,
+                auction != null ? deliveryStatusLabel(auction.getDeliveryStatus()) : null
         );
+    }
+
+    private static String deliveryStatusLabel(DeliveryStatus status) {
+        if (status == null) return null;
+        return switch (status) {
+            case PAYMENT_COMPLETED -> "결제완료";
+            case SHIPMENT_NOTICE -> "발송알림";
+            case SHIPPING -> "배송중";
+            case DELIVERED -> "수령확인 대기";
+            case RECEIVED -> "정산완료";
+        };
     }
 
     private static String conditionLabel(ProductCondition condition) {

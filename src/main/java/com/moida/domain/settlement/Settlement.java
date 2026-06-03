@@ -75,6 +75,20 @@ public class Settlement extends BaseTimeEntity {
         this.paidAt = LocalDateTime.now();
     }
 
+    public void payToSeller() {
+        if (this.status == SettlementStatus.PAID) {
+            throw new IllegalStateException("이미 정산 완료된 거래입니다.");
+        }
+        if (this.status == SettlementStatus.CANCELED) {
+            throw new IllegalStateException("보류된 정산은 지급할 수 없습니다.");
+        }
+        if (this.settledAmount > 0) {
+            this.seller.chargeBalance(this.settledAmount);
+        }
+        this.auction.markSettled();
+        markAsPaid();
+    }
+
     public void cancel() { this.status = SettlementStatus.CANCELED; }
 
     public enum SettlementStatus {

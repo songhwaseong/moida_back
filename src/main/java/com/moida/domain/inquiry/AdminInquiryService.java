@@ -3,6 +3,8 @@ package com.moida.domain.inquiry;
 import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
 import com.moida.common.response.InquiryResponse;
+import com.moida.domain.notification.Notification;
+import com.moida.domain.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +20,7 @@ import java.util.List;
 public class AdminInquiryService {
 
     private final InquiryRepository inquiryRepository;
+    private final NotificationService notificationService;
 
     /** 전체 문의 목록 (최신순) */
     @Transactional(readOnly = true)
@@ -36,6 +39,13 @@ public class AdminInquiryService {
         Inquiry inquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND));
         inquiry.answer(text.trim());
+        notificationService.createAndPush(
+                inquiry.getUser(),
+                Notification.NotificationType.INQUIRY_ANSWERED,
+                "상품 문의에 답변이 등록됐어요",
+                String.format("'%s' 상품 문의에 답변이 등록되었습니다.", inquiry.getProduct().getName()),
+                "/products/" + inquiry.getProduct().getId()
+        );
         return InquiryResponse.from(inquiry);
     }
 

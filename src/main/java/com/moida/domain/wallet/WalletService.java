@@ -158,6 +158,47 @@ public class WalletService {
     }
 
     /**
+     * 판매 정산금을 판매자의 거래 내역(입금/완료)으로 기록합니다.
+     *
+     * 잔액 증가(chargeBalance)는 {@link com.moida.domain.settlement.Settlement#payToSeller()} 가
+     * 이미 수행하므로, 여기서는 계좌이력 화면에 노출될 wallet_transactions 행만 생성합니다.
+     * (잔액을 다시 더하지 않도록 주의 — 중복 반영 금지)
+     */
+    @Transactional
+    public void recordSettlementCredit(Member seller, long amount, String description) {
+        if (amount <= 0) {
+            return;
+        }
+        transactionRepository.save(WalletTransaction.builder()
+                .member(seller)
+                .type(WalletTransaction.TransactionType.DEPOSIT)
+                .status(WalletTransaction.TransactionStatus.COMPLETED)
+                .amount(amount)
+                .description(description)
+                .build());
+    }
+
+    /**
+     * 경매 낙찰 결제(잔액 차감)를 구매자의 거래 내역(출금/완료)으로 기록합니다.
+     *
+     * 잔액 차감(deductBalance)은 결제 처리 로직이 이미 수행하므로, 여기서는 계좌이력 화면에
+     * 노출될 wallet_transactions 행만 생성합니다. (잔액을 다시 차감하지 않도록 주의 — 중복 반영 금지)
+     */
+    @Transactional
+    public void recordPaymentDebit(Member buyer, long amount, String description) {
+        if (amount <= 0) {
+            return;
+        }
+        transactionRepository.save(WalletTransaction.builder()
+                .member(buyer)
+                .type(WalletTransaction.TransactionType.WITHDRAW)
+                .status(WalletTransaction.TransactionStatus.COMPLETED)
+                .amount(amount)
+                .description(description)
+                .build());
+    }
+
+    /**
      * 아직 처리되지 않은 입금 요청을 취소합니다.
      */
     @Transactional

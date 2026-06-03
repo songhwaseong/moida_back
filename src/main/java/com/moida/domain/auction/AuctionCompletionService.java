@@ -14,6 +14,7 @@ import com.moida.domain.settlement.FeeRule;
 import com.moida.domain.settlement.FeeRuleRepository;
 import com.moida.domain.settlement.Settlement;
 import com.moida.domain.settlement.SettlementRepository;
+import com.moida.domain.wallet.WalletService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -61,6 +62,7 @@ public class AuctionCompletionService {
     private final FeeRuleRepository feeRuleRepository;
     private final NotificationService notificationService;
     private final SanctionRepository sanctionRepository;
+    private final WalletService walletService;
 
     // ================================================================
     // 1) 낙찰 확정
@@ -75,6 +77,20 @@ public class AuctionCompletionService {
     @Transactional
     public boolean finalizeWinner(Auction auction, Member winner, long winningAmount) {
         Product product = auction.getProduct();
+
+        // 낙찰 확정 시점에 판매자에게 1회 알림. (즉시낙찰/일반낙찰 공통 경로이며, 잔액 충분/부족 분기 이전)
+        // 결제 완료 여부와 무관하게 "낙찰됐다"는 사실 자체를 판매자에게 전달한다.
+        Member seller = product.getSeller();
+        if (seller != null) {
+            createNotification(
+                    seller,
+                    Notification.NotificationType.PRODUCT_SOLD,
+                    "상품이 낙찰됐어요",
+                    String.format("[%s] 상품이 %s원에 낙찰되었습니다.",
+                            product.getName(), formatAmount(winningAmount)),
+                    "/my/products"
+            );
+        }
 
         if (winner.getBalance() >= winningAmount) {
             // 잔액 충분 → 즉시 결제 처리
@@ -168,6 +184,9 @@ public class AuctionCompletionService {
                             auction.close(null, null);
                             Product product = auction.getProduct();
                             product.changeStatus(ProductStatus.FAILED);
+                            notifyAuctionFailed(product, auction, "입찰 없이 유찰됐어요",
+                                    String.format("[%s] 경매가 입찰 없이 종료되어 유찰 처리되었습니다. 필요 시 재등록해주세요.",
+                                            product.getName()));
                             log.info("[AuctionCompletion] no-bid failed auctionId={}", auctionId);
                         }
                 );
@@ -241,6 +260,13 @@ public class AuctionCompletionService {
     private void settleImmediately(Auction auction, Member winner, long amount, Product product) {
         winner.deductBalance(amount);
 
+        // 구매자 결제(잔액 차감)를 계좌이력(출금)으로 기록한다. (deductBalance 가 잔액을 이미 차감했으므로 내역만 추가)
+        walletService.recordPaymentDebit(
+                winner,
+                amount,
+                String.format("경매 낙찰 결제 - %s", product.getName())
+        );
+
         // 이미 결제 완료된 경매가 다시 호출되는 경우(중복 호출)를 위해 가드.
         if (auction.getStatus() == AuctionStatus.AWAITING_PAYMENT) {
             auction.completePayment();
@@ -251,6 +277,7 @@ public class AuctionCompletionService {
         product.changeStatus(ProductStatus.SOLD);
 
         ensureSettlement(auction, winner, amount);
+        auction.startDeliveryDemo();
 
         createNotification(
                 winner,
@@ -328,6 +355,18 @@ public class AuctionCompletionService {
     private void createNotification(Member to, Notification.NotificationType type,
                                      String title, String content, String linkUrl) {
         notificationService.createAndPush(to, type, title, content, linkUrl);
+    }
+
+    private void notifyAuctionFailed(Product product, Auction auction, String title, String content) {
+        Member seller = product.getSeller();
+        if (seller == null) return;
+        createNotification(
+                seller,
+                Notification.NotificationType.PRODUCT_AUCTION_FAILED,
+                title,
+                content,
+                "/auctions/" + auction.getId()
+        );
     }
 
     private String formatAmount(long amount) {

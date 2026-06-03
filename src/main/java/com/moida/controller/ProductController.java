@@ -6,6 +6,8 @@ import com.moida.common.response.ApiResponse;
 import com.moida.common.response.MyBidResponse;
 import com.moida.common.response.ProductDetailResponse;
 import com.moida.common.response.ProductSummaryResponse;
+import com.moida.common.response.PurchaseHistoryResponse;
+import com.moida.domain.auction.AuctionDeliveryService;
 import com.moida.domain.auction.AuctionBidService;
 import com.moida.domain.product.ProductService;
 import com.moida.security.CustomUserDetails;
@@ -16,6 +18,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/products")
@@ -25,6 +28,7 @@ public class ProductController {
 
     private final ProductService productService;
     private final AuctionBidService auctionBidService;
+    private final AuctionDeliveryService auctionDeliveryService;
 
     // 홈 화면 상품 목록 조회용 공개 API.
     // status=LIVE → 실시간 경매, status=SCHEDULED → 경매 예정 매물
@@ -66,6 +70,15 @@ public class ProductController {
         log.info("[ProductController] GET /api/products/bids/me memberId={}", userDetails.getMemberId());
         List<MyBidResponse> bids = auctionBidService.getMyBids(userDetails.getMemberId());
         return ResponseEntity.ok(ApiResponse.success(bids));
+    }
+
+    @GetMapping("/purchases/me")
+    public ResponseEntity<ApiResponse<List<PurchaseHistoryResponse>>> getMyPurchases(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        log.info("[ProductController] GET /api/products/purchases/me memberId={}", userDetails.getMemberId());
+        List<PurchaseHistoryResponse> purchases = auctionDeliveryService.getMyPurchases(userDetails.getMemberId());
+        return ResponseEntity.ok(ApiResponse.success(purchases));
     }
 
     // 상품 상세 화면에서 productId 기준으로 DB 데이터를 조회한다.
@@ -114,5 +127,28 @@ public class ProductController {
         log.info("[ProductController] PUT /api/products/{} memberId={}", productId, userDetails.getMemberId());
         Long updatedId = productService.updateMyProduct(productId, userDetails.getMemberId(), request);
         return ResponseEntity.ok(ApiResponse.success(updatedId, "상품이 수정되었습니다."));
+    }
+
+    @PostMapping("/{productId}/return-request")
+    public ResponseEntity<ApiResponse<Long>> requestReturn(
+            @PathVariable Long productId,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        String reason = body == null ? null : body.get("reason");
+        log.info("[ProductController] POST /api/products/{}/return-request memberId={}",
+                productId, userDetails.getMemberId());
+        Long updatedId = productService.requestReturn(productId, userDetails.getMemberId(), reason);
+        return ResponseEntity.ok(ApiResponse.success(updatedId, "환수요청이 접수되었습니다."));
+    }
+    @PostMapping("/{productId}/confirm-receipt")
+    public ResponseEntity<ApiResponse<Void>> confirmReceipt(
+            @PathVariable Long productId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        log.info("[ProductController] POST /api/products/{}/confirm-receipt memberId={}",
+                productId, userDetails.getMemberId());
+        auctionDeliveryService.confirmReceipt(productId, userDetails.getMemberId());
+        return ResponseEntity.ok(ApiResponse.success(null, "수령확인이 완료되었습니다."));
     }
 }

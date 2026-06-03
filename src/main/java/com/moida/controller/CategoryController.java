@@ -19,6 +19,8 @@ import java.util.List;
 @Slf4j
 public class CategoryController {
 
+    private static final String HIDDEN_CATEGORY_NAME = "이월상품";
+
     private final CategoryRepository categoryRepository;
 
     // 홈 화면 카테고리 칩 영역에서 사용한다.
@@ -30,6 +32,7 @@ public class CategoryController {
         List<CategoryResponse> categories = categoryRepository
                 .findAllByIsActiveTrueOrderByDisplayOrderAscIdAsc()
                 .stream()
+                .filter(category -> !HIDDEN_CATEGORY_NAME.equals(category.getName()))
                 .map(CategoryResponse::from)
                 .toList();
         log.info("[CategoryController] GET /api/categories count={}", categories.size());

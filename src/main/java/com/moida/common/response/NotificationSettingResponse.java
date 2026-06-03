@@ -7,7 +7,10 @@ public record NotificationSettingResponse(
         boolean priceEnabled,
         boolean chatEnabled,
         boolean tradeEnabled,
-        boolean marketingEnabled
+        boolean marketingEnabled,
+        boolean productStatusEnabled,
+        boolean inquiryEnabled,
+        boolean auctionResultEnabled
 ) {
     public static NotificationSettingResponse from(NotificationSetting setting) {
         return new NotificationSettingResponse(
@@ -15,7 +18,10 @@ public record NotificationSettingResponse(
                 setting.isPriceEnabled(),
                 setting.isChatEnabled(),
                 setting.isTradeEnabled(),
-                setting.isMarketingEnabled()
+                setting.isMarketingEnabled(),
+                setting.isProductStatusEnabled(),
+                setting.isInquiryEnabled(),
+                setting.isAuctionResultEnabled()
         );
     }
 }

@@ -48,15 +48,28 @@ public class NotificationSetting extends BaseTimeEntity {
     @Column(name = "marketing_enabled", nullable = false)
     private boolean marketingEnabled;
 
+    @Column(name = "product_status_enabled")
+    private Boolean productStatusEnabled;
+
+    @Column(name = "inquiry_enabled")
+    private Boolean inquiryEnabled;
+
+    @Column(name = "auction_result_enabled")
+    private Boolean auctionResultEnabled;
+
     @Builder
     private NotificationSetting(Member member, boolean bidEnabled, boolean priceEnabled,
-                                boolean chatEnabled, boolean tradeEnabled, boolean marketingEnabled) {
+                                boolean chatEnabled, boolean tradeEnabled, boolean marketingEnabled,
+                                Boolean productStatusEnabled, Boolean inquiryEnabled, Boolean auctionResultEnabled) {
         this.member = member;
         this.bidEnabled = bidEnabled;
         this.priceEnabled = priceEnabled;
         this.chatEnabled = chatEnabled;
         this.tradeEnabled = tradeEnabled;
         this.marketingEnabled = marketingEnabled;
+        this.productStatusEnabled = productStatusEnabled == null || productStatusEnabled;
+        this.inquiryEnabled = inquiryEnabled == null || inquiryEnabled;
+        this.auctionResultEnabled = auctionResultEnabled == null || auctionResultEnabled;
     }
 
     // 신규 회원 또는 기존 회원의 최초 조회 시 사용할 앱 기본 알림 설정입니다.
@@ -68,16 +81,35 @@ public class NotificationSetting extends BaseTimeEntity {
                 .chatEnabled(true)
                 .tradeEnabled(true)
                 .marketingEnabled(false)
+                .productStatusEnabled(true)
+                .inquiryEnabled(true)
+                .auctionResultEnabled(true)
                 .build();
     }
 
     // 설정 화면에서 전달된 전체 토글 상태를 한 번에 반영합니다.
     public void update(boolean bidEnabled, boolean priceEnabled, boolean chatEnabled,
-                       boolean tradeEnabled, boolean marketingEnabled) {
+                       boolean tradeEnabled, boolean marketingEnabled,
+                       boolean productStatusEnabled, boolean inquiryEnabled, boolean auctionResultEnabled) {
         this.bidEnabled = bidEnabled;
         this.priceEnabled = priceEnabled;
         this.chatEnabled = chatEnabled;
         this.tradeEnabled = tradeEnabled;
         this.marketingEnabled = marketingEnabled;
+        this.productStatusEnabled = productStatusEnabled;
+        this.inquiryEnabled = inquiryEnabled;
+        this.auctionResultEnabled = auctionResultEnabled;
+    }
+
+    public boolean isProductStatusEnabled() {
+        return productStatusEnabled == null || productStatusEnabled;
+    }
+
+    public boolean isInquiryEnabled() {
+        return inquiryEnabled == null || inquiryEnabled;
+    }
+
+    public boolean isAuctionResultEnabled() {
+        return auctionResultEnabled == null || auctionResultEnabled;
     }
 }

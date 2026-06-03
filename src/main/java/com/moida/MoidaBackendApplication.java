@@ -39,8 +39,7 @@ public class MoidaBackendApplication {
                     new String[]{"뷰티/미용", "💄"},
                     new String[]{"게임/취미", "🎮"},
                     new String[]{"음향/악기", "🎵"},
-                    new String[]{"한정판", "⭐"},
-                    new String[]{"이월상품", "🏷️"}
+                    new String[]{"한정판", "⭐"}
             );
 
             for (int i = 0; i < categories.size(); i++) {

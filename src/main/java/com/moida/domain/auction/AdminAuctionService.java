@@ -5,6 +5,10 @@ import com.moida.common.exception.ErrorCode;
 import com.moida.common.response.AdminAuctionBidResponse;
 import com.moida.common.response.AdminAuctionResponse;
 import com.moida.domain.member.Member;
+import com.moida.domain.notification.Notification;
+import com.moida.domain.notification.NotificationService;
+import com.moida.domain.product.Product;
+import com.moida.domain.product.ProductStatus;
 import com.moida.domain.settlement.FeeRule;
 import com.moida.domain.settlement.FeeRuleRepository;
 import com.moida.domain.settlement.Settlement;
@@ -35,6 +39,8 @@ public class AdminAuctionService {
     private final BidRepository bidRepository;
     private final SettlementRepository settlementRepository;
     private final FeeRuleRepository feeRuleRepository;
+    private final NotificationService notificationService;
+    private final AuctionCompletionService completionService;
 
     /** 전체 경매 목록 (최신순) */
     @Transactional(readOnly = true)
@@ -60,27 +66,55 @@ public class AdminAuctionService {
     public AdminAuctionResponse updateStatus(Long auctionId, AuctionStatus next) {
         Auction auction = auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
+        AuctionStatus previousStatus = auction.getStatus();
 
         switch (next) {
             case LIVE -> {
                 if (auction.getStatus() != AuctionStatus.LIVE) {
                     auction.start();
+                    auction.getProduct().changeStatus(ProductStatus.LIVE);
+                    notifySeller(
+                            auction.getProduct(),
+                            Notification.NotificationType.PRODUCT_AUCTION_STARTED,
+                            "경매가 시작됐어요",
+                            String.format("'%s' 상품 경매가 시작됐습니다. 경매 종료 전까지 입찰 현황을 확인해보세요.",
+                                    auction.getProduct().getName()),
+                            "/auctions/" + auction.getId()
+                    );
                 }
             }
             case SUCCESS -> {
                 Bid top = bidRepository.findFirstByAuctionIdOrderByAmountDesc(auctionId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT,
                                 "입찰 내역이 없어 낙찰 처리할 수 없습니다."));
-                auction.close(top.getBidder(), top.getAmount());
-                // 낙찰 확정 시점에 정산 row 도 함께 생성 (이미 있으면 noop)
-                ensureSettlement(auction, top.getBidder(), top.getAmount());
+                completionService.finalizeWinner(auction, top.getBidder(), top.getAmount());
             }
-            case FAILED -> auction.close(null, null);
+            case FAILED -> {
+                auction.close(null, null);
+                Product product = auction.getProduct();
+                product.changeStatus(ProductStatus.FAILED);
+                if (previousStatus != AuctionStatus.FAILED) {
+                    notifySeller(
+                            product,
+                            Notification.NotificationType.PRODUCT_AUCTION_FAILED,
+                            "경매가 유찰됐어요",
+                            String.format("[%s] 경매가 유찰 처리되었습니다. 필요 시 재등록해주세요.", product.getName()),
+                            "/auctions/" + auction.getId()
+                    );
+                }
+            }
             case CANCELED -> auction.cancel();
             case READY -> throw new BusinessException(ErrorCode.INVALID_INPUT,
                     "READY 상태로의 변경은 허용되지 않습니다.");
         }
         return AdminAuctionResponse.from(auction);
+    }
+
+    private void notifySeller(Product product, Notification.NotificationType type,
+                              String title, String content, String linkUrl) {
+        Member seller = product.getSeller();
+        if (seller == null) return;
+        notificationService.createAndPush(seller, type, title, content, linkUrl);
     }
 
     /**

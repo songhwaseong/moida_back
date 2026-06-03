@@ -69,7 +69,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
               and (:status is null or p.status = :status)
               and p.status not in (com.moida.domain.product.ProductStatus.DELETED,
                                    com.moida.domain.product.ProductStatus.HIDDEN,
-                                   com.moida.domain.product.ProductStatus.PENDING)
+                                   com.moida.domain.product.ProductStatus.PENDING,
+                                   com.moida.domain.product.ProductStatus.RETURN_REQUESTED,
+                                   com.moida.domain.product.ProductStatus.RETURN_SHIPPING,
+                                   com.moida.domain.product.ProductStatus.RETURN_COMPLETED)
             """)
     List<Product> findVisibleProducts(
             @Param("type") ProductType type,
@@ -89,7 +92,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             where p.id = :id
               and p.status not in (com.moida.domain.product.ProductStatus.DELETED,
                                    com.moida.domain.product.ProductStatus.HIDDEN,
-                                   com.moida.domain.product.ProductStatus.PENDING)
+                                   com.moida.domain.product.ProductStatus.PENDING,
+                                   com.moida.domain.product.ProductStatus.RETURN_REQUESTED,
+                                   com.moida.domain.product.ProductStatus.RETURN_SHIPPING,
+                                   com.moida.domain.product.ProductStatus.RETURN_COMPLETED)
             """)
     Optional<Product> findVisibleProductDetail(@Param("id") Long id);
 

@@ -7,6 +7,9 @@ import com.moida.common.response.ApiResponse;
 import com.moida.common.response.NoticeResponse;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
+import com.moida.domain.member.MemberStatus;
+import com.moida.domain.notification.Notification;
+import com.moida.domain.notification.NotificationService;
 import com.moida.domain.notice.Notice;
 import com.moida.domain.notice.NoticeRepository;
 import com.moida.security.CustomUserDetails;
@@ -34,6 +37,7 @@ public class AdminNoticeController {
 
     private final NoticeRepository noticeRepository;
     private final MemberRepository memberRepository;
+    private final NotificationService notificationService;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -68,6 +72,10 @@ public class AdminNoticeController {
                 .status(parseStatus(request.status()))
                 .isPinned(request.isPinned())
                 .build());
+
+        if (notice.getStatus() == Notice.NoticeStatus.PUBLISHED) {
+            notifyPublishedNotice(notice);
+        }
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -115,5 +123,27 @@ public class AdminNoticeController {
         if ("예약".equals(status)) return Notice.NoticeStatus.SCHEDULED;
         if ("숨김".equals(status)) return Notice.NoticeStatus.HIDDEN;
         return Notice.NoticeStatus.PUBLISHED;
+    }
+
+    private void notifyPublishedNotice(Notice notice) {
+        memberRepository.findAllByStatusOrderByWithdrawnAtDesc(MemberStatus.ACTIVE)
+                .forEach(member -> notificationService.createAndPush(
+                        member,
+                        Notification.NotificationType.NOTICE,
+                        "새 공지사항이 등록됐어요",
+                        String.format("[%s] %s", noticeCategoryLabel(notice.getCategory()), notice.getTitle()),
+                        "/notices/" + notice.getId()
+                ));
+    }
+
+    private String noticeCategoryLabel(Notice.NoticeCategory category) {
+        return switch (category) {
+            case EVENT -> "이벤트";
+            case MAINTENANCE -> "점검";
+            case POLICY -> "정책";
+            case UPDATE -> "업데이트";
+            case URGENT -> "긴급";
+            case GENERAL -> "서비스";
+        };
     }
 }

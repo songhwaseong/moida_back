@@ -4,6 +4,7 @@ import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
 import com.moida.common.response.AdminSettlementResponse;
 import com.moida.common.response.AdminSettlementSummaryResponse;
+import com.moida.domain.wallet.WalletService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ import java.util.List;
 public class AdminSettlementService {
 
     private final SettlementRepository settlementRepository;
+    private final WalletService walletService;
 
     @Transactional(readOnly = true)
     public List<AdminSettlementResponse> getAll() {
@@ -58,7 +60,13 @@ public class AdminSettlementService {
                 if (s.getStatus() == Settlement.SettlementStatus.PAID) {
                     throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 정산 완료된 거래입니다.");
                 }
-                s.markAsPaid();
+                s.payToSeller();
+                // 정산 지급액을 판매자 계좌이력(입금)으로 기록한다. (payToSeller 가 잔액을 이미 올렸으므로 내역만 추가)
+                walletService.recordSettlementCredit(
+                        s.getSeller(),
+                        s.getSettledAmount(),
+                        "판매 정산금 입금"
+                );
             }
             case CANCELED -> {
                 if (s.getStatus() == Settlement.SettlementStatus.PAID) {

@@ -20,12 +20,15 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminCategoryService {
 
+    private static final String HIDDEN_CATEGORY_NAME = "이월상품";
+
     private final CategoryRepository categoryRepository;
 
     /** 전체 카테고리 목록 (활성/비활성 모두 포함, displayOrder ASC) */
     @Transactional(readOnly = true)
     public List<AdminCategoryResponse> getAll() {
         return categoryRepository.findAllByOrderByDisplayOrderAscIdAsc().stream()
+                .filter(category -> !HIDDEN_CATEGORY_NAME.equals(category.getName()))
                 .map(AdminCategoryResponse::from)
                 .toList();
     }
@@ -64,6 +67,7 @@ public class AdminCategoryService {
         }
         // 변경 후 정렬된 결과를 다시 조회해 응답한다.
         return categoryRepository.findAllByOrderByDisplayOrderAscIdAsc().stream()
+                .filter(category -> !HIDDEN_CATEGORY_NAME.equals(category.getName()))
                 .map(AdminCategoryResponse::from)
                 .toList();
     }

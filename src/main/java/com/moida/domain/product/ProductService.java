@@ -43,6 +43,8 @@ public class ProductService {
     // 판매자가 직접 수정할 수 있는 상품 상태(경매예정/유찰/숨김).
     private static final Set<ProductStatus> USER_EDITABLE_STATUSES =
             Set.of(ProductStatus.SCHEDULED, ProductStatus.FAILED, ProductStatus.HIDDEN);
+    private static final Set<ProductStatus> USER_RETURN_REQUESTABLE_STATUSES =
+            Set.of(ProductStatus.PENDING, ProductStatus.SCHEDULED, ProductStatus.FAILED);
     // 수정 시 사용자가 지정할 수 있는 상태(승인요청=PENDING / 숨김=HIDDEN). 경매예정·진행중·낙찰 등은 관리자·시스템이 관리한다.
     // 상품을 수정하면 다시 관리자 승인을 받도록 PENDING 으로 되돌릴 수 있다.
     private static final Set<ProductStatus> USER_SETTABLE_STATUSES =
@@ -181,6 +183,24 @@ public class ProductService {
         return product.getId();
     }
 
+    @Transactional
+    public Long requestReturn(Long productId, Long memberId, String reason) {
+        Product product = productRepository.findOwnProductDetail(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        if (!product.isOwnedBy(memberId)) {
+            throw new BusinessException(ErrorCode.NOT_PRODUCT_OWNER);
+        }
+        if (!USER_RETURN_REQUESTABLE_STATUSES.contains(product.getStatus())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "승인요청중·경매예정·유찰 상태의 상품만 환수요청할 수 있습니다.");
+        }
+
+        product.requestReturn(normalizeReturnReason(reason));
+        log.info("[ProductService] requestReturn productId={}, memberId={}, status={}",
+                product.getId(), memberId, product.getStatus());
+        return product.getId();
+    }
+
     private ProductStatus parseUserSettableStatus(String status) {
         if (status == null || status.isBlank()) {
             return null;
@@ -303,6 +323,9 @@ public class ProductService {
                 .filter(product -> product.getStatus() != ProductStatus.DELETED)
                 .filter(product -> product.getStatus() != ProductStatus.HIDDEN)
                 .filter(product -> product.getStatus() != ProductStatus.PENDING)
+                .filter(product -> product.getStatus() != ProductStatus.RETURN_REQUESTED)
+                .filter(product -> product.getStatus() != ProductStatus.RETURN_SHIPPING)
+                .filter(product -> product.getStatus() != ProductStatus.RETURN_COMPLETED)
                 .map(product -> ProductSummaryResponse.from(product, auctionsByProductId.get(product.getId())))
                 .toList();
     }
@@ -326,7 +349,11 @@ public class ProductService {
         boolean isOwner = memberId != null && product.isOwnedBy(memberId);
         // DELETED 는 본인도 조회 불가. PENDING/HIDDEN 은 본인만 조회 가능.
         if (status == ProductStatus.DELETED
-                || ((status == ProductStatus.PENDING || status == ProductStatus.HIDDEN) && !isOwner)) {
+                || ((status == ProductStatus.PENDING
+                || status == ProductStatus.HIDDEN
+                || status == ProductStatus.RETURN_REQUESTED
+                || status == ProductStatus.RETURN_SHIPPING
+                || status == ProductStatus.RETURN_COMPLETED) && !isOwner)) {
             throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
         }
 
@@ -404,6 +431,17 @@ public class ProductService {
     private String normalizeBlank(String value) {
         if (value == null || value.isBlank()) return null;
         return value.trim();
+    }
+
+    private String normalizeReturnReason(String reason) {
+        String normalized = normalizeBlank(reason);
+        if (normalized == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "환수요청 사유를 입력해주세요.");
+        }
+        if (normalized.length() > 500) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "환수요청 사유는 500자 이내로 입력해주세요.");
+        }
+        return normalized;
     }
 
     private List<String> resolveRequestImages(List<String> images, String legacySingleImage) {
