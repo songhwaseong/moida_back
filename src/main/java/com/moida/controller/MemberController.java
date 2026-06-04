@@ -8,17 +8,21 @@ import com.moida.common.request.SignupRequest;
 import com.moida.common.response.ApiResponse;
 import com.moida.common.response.LoginResponse;
 import com.moida.common.response.RefreshTokenResponse;
+import com.moida.common.util.ClientIpResolver;
+import com.moida.domain.audit.AdminLoginLogService;
 import com.moida.security.CustomUserDetails;
 import com.moida.domain.auth.PhoneVerificationService;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberService;
 import com.moida.security.JwtTokenProvider;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,20 +48,35 @@ public class MemberController {
     private final JwtTokenProvider jwtTokenProvider;
     private final SocialLoginService socialLoginService; // 소셜 로그인 처리 서비스
     private final PhoneVerificationService phoneVerificationService; // 휴대폰 인증 확인
+    private final AdminLoginLogService adminLoginLogService; // 관리자 로그인 기록
     //
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
+            @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest) {
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+        String ip = ClientIpResolver.resolve(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+            );
+        } catch (AuthenticationException e) {
+            // 인증 실패(비밀번호 오류 등) — 관리자 계정 대상이면 실패 기록 후 원래 흐름대로 예외 전파.
+            adminLoginLogService.recordFailure(request.getEmail(), ip, userAgent);
+            throw e;
+        }
 
         Member member = memberService.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         if (!member.isActive()) {
             throw new BusinessException(ErrorCode.MEMBER_ACCOUNT_INACTIVE);
         }
+
+        // 관리자(ADMIN/MANAGER) 로그인 성공 기록.
+        adminLoginLogService.recordSuccess(member, ip, userAgent);
 
         String accessToken = jwtTokenProvider.createAccessToken(
                 member.getId(), member.getEmail(), member.getRole()

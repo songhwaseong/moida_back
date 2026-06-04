@@ -7,6 +7,7 @@ import com.moida.common.response.AdminProductDetailResponse;
 import com.moida.common.response.AdminProductResponse;
 import com.moida.common.response.AdminProductStatsResponse;
 import com.moida.domain.auction.Auction;
+import com.moida.domain.auction.AuctionPolicyService;
 import com.moida.domain.auction.AuctionRepository;
 import com.moida.domain.category.Category;
 import com.moida.domain.category.CategoryRepository;
@@ -34,9 +35,7 @@ public class AdminProductService {
     private final CategoryRepository categoryRepository;
     private final AuctionRepository auctionRepository;
     private final NotificationService notificationService;
-
-    /** 경매 기간(시작 ~ 종료) — 별도 입력값이 없으므로 일괄 7일로 고정한다. */
-    private static final int DEFAULT_AUCTION_DAYS = 7;
+    private final AuctionPolicyService auctionPolicyService;
     /** 최소 호가 단위 기본값. 등록 시 입력값을 저장하지 않으므로 보수적으로 1,000원으로 둔다. */
     private static final long DEFAULT_MIN_BID_UNIT = 1_000L;
     /** 시연용: 경매예정(SCHEDULED) 진입 후 자동으로 LIVE 로 전환되기까지의 대기 시간(초). */
@@ -185,7 +184,8 @@ public class AdminProductService {
                 .immediatePrice(product.getImmediatePrice())
                 .minBidUnit(minBidUnit)
                 .startAt(now)
-                .endAt(now.plusDays(DEFAULT_AUCTION_DAYS))
+                // 경매 기간은 관리자 설정값(분)을 따른다. 변경 시 이후 시작되는 경매부터 적용된다.
+                .endAt(now.plusMinutes(auctionPolicyService.getDurationMinutes()))
                 .build();
         // 생성 직후 LIVE 로 전환 (Auction 기본 status 는 READY)
         auction.start();

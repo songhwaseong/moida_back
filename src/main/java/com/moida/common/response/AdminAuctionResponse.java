@@ -23,6 +23,9 @@ public record AdminAuctionResponse(
         int bidCount,
         long timeLeft,
         String status,
+        // 낙찰(SUCCESS) 이후 결제·배송 진행 단계. 경매관리 화면의 '진행상태' 컬럼/필터에 사용한다.
+        // 배송 단계 진입 전이면 null.
+        String deliveryStatus,
         String startAt,
         String endAt
 ) {
@@ -40,6 +43,7 @@ public record AdminAuctionResponse(
                 auction.getBidCount(),
                 timeLeftSec,
                 statusName(auction.getStatus()),
+                auction.getDeliveryStatus() == null ? null : auction.getDeliveryStatus().name(),
                 auction.getStartAt().toString(),
                 auction.getEndAt().toString()
         );

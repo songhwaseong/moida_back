@@ -1,5 +1,8 @@
 package com.moida.config;
 
+import com.moida.domain.auction.AuctionPolicy;
+import com.moida.domain.auction.AuctionPolicyRepository;
+import com.moida.domain.auction.AuctionPolicyService;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
 import com.moida.domain.settlement.FeeRule;
@@ -19,6 +22,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final MemberRepository memberRepository;
     private final FeeRuleRepository feeRuleRepository;
+    private final AuctionPolicyRepository auctionPolicyRepository;
 
     // 관리자/매니저 목업 계정 시드는 모두 제거되었다.
     // 권한이 필요한 계정은 운영자가 DB에서 직접 role 컬럼을 수정하거나 별도 절차로 처리한다.
@@ -37,6 +41,7 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) {
         migrateNicknames();
         seedFeeRules();
+        seedAuctionPolicy();
     }
 
     private void migrateNicknames() {
@@ -55,5 +60,14 @@ public class DataInitializer implements CommandLineRunner {
                     .build());
         }
         log.info("기본 수수료 정책 {}건 시드 완료", DEFAULT_FEE_RULES.length);
+    }
+
+    /** 기본 경매 정책(경매 기본 기간). auction_policy 테이블이 비어 있을 때만 시드한다. */
+    private void seedAuctionPolicy() {
+        if (auctionPolicyRepository.count() > 0) return;
+        auctionPolicyRepository.save(AuctionPolicy.builder()
+                .durationMinutes(AuctionPolicyService.DEFAULT_DURATION_MINUTES)
+                .build());
+        log.info("기본 경매 정책 시드 완료 (durationMinutes={})", AuctionPolicyService.DEFAULT_DURATION_MINUTES);
     }
 }
