@@ -14,6 +14,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 
@@ -127,20 +129,40 @@ public class NotificationService {
                 .linkUrl(linkUrl)
                 .build());
 
+        Long memberId = to.getId();
+        String recipientEmail = to.getEmail();
+        NotificationResponse payload = NotificationResponse.from(saved);
+        Runnable pushTask = () -> pushRealtimeNotification(memberId, recipientEmail, type, title, payload);
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    pushTask.run();
+                }
+            });
+        } else {
+            pushTask.run();
+        }
+
+        return saved;
+    }
+
+    private void pushRealtimeNotification(Long memberId, String recipientEmail, Notification.NotificationType type,
+                                          String title, NotificationResponse payload) {
         try {
             // STOMP user destination 으로 즉시 push. 수신 클라이언트는 NotificationResponse 형태로 처리.
             messagingTemplate.convertAndSendToUser(
-                    to.getEmail(),
+                    recipientEmail,
                     USER_NOTIFICATION_DESTINATION,
-                    NotificationResponse.from(saved)
+                    payload
             );
         } catch (Exception e) {
             // 실시간 push 가 실패해도(클라이언트 미연결 등) 정상 흐름으로 간주.
             // 사용자는 알림 페이지에서 곧 확인할 수 있다.
             log.warn("[NotificationService] WebSocket push failed memberId={}, type={}: {}",
-                    to.getId(), type, e.getMessage());
+                    memberId, type, e.getMessage());
         }
-        return saved;
     }
 
     private boolean isEnabledFor(Member member, Notification.NotificationType type) {

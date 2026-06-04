@@ -14,6 +14,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final WebSocketAuthChannelInterceptor webSocketAuthChannelInterceptor;
+    private final JwtHandshakeHandler jwtHandshakeHandler;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
@@ -29,7 +30,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // 로컬에서는 Vite가 /ws를 프록시하고, 운영 nginx도 같은 경로를 전달한다.
+        // 핸드셰이크 시 ?token=<JWT> 로 인증해 session.getPrincipal() 을 세팅한다
+        // (개인 알림 user-destination 이 동작하려면 세션에 Principal 이 있어야 함).
         registry.addEndpoint("/ws")
+                .setHandshakeHandler(jwtHandshakeHandler)
                 .setAllowedOriginPatterns("*");
     }
 
