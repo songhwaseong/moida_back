@@ -83,6 +83,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/members/*/role").hasRole("ADMIN")
                         // 로그인 기록 조회는 ADMIN 만 (MANAGER 불가)
                         .requestMatchers("/api/admin/login-logs/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/action-logs/**").hasRole("ADMIN")
                         // 매니저, 관리자 전용
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "MANAGER")
                         // 그 외 인증 필요

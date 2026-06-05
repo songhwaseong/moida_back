@@ -4,6 +4,7 @@ import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
 import com.moida.common.request.AuctionPolicyUpdateRequest;
 import com.moida.common.response.AuctionPolicyResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ public class AuctionPolicyService {
     private static final int MAX_DURATION_MINUTES = 365 * 24 * 60;
 
     private final AuctionPolicyRepository auctionPolicyRepository;
+    private final AdminActionLogService adminActionLogService;
 
     /** 경매 생성 시 사용할 현재 진행 기간(분). 정책이 없으면 기본값. */
     @Transactional(readOnly = true)
@@ -49,8 +51,18 @@ public class AuctionPolicyService {
                 .orElseGet(() -> AuctionPolicy.builder()
                         .durationMinutes(DEFAULT_DURATION_MINUTES)
                         .build());
+        int previousDurationMinutes = policy.getDurationMinutes();
         policy.updateDurationMinutes(total);
-        auctionPolicyRepository.save(policy);
+        AuctionPolicy saved = auctionPolicyRepository.save(policy);
+        adminActionLogService.record(
+                "AUCTION_POLICY_UPDATE",
+                "AUCTION_POLICY",
+                saved.getId(),
+                "경매 기본 기간",
+                adminActionLogService.fields("durationMinutes", previousDurationMinutes),
+                adminActionLogService.fields("durationMinutes", total),
+                "경매 기본 기간 수정"
+        );
         return AuctionPolicyResponse.of(total);
     }
 }

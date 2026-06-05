@@ -4,6 +4,7 @@ import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
 import com.moida.common.request.FeeRuleUpdateRequest;
 import com.moida.common.response.FeeRuleResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ import java.util.List;
 public class AdminFeeRuleService {
 
     private final FeeRuleRepository feeRuleRepository;
+    private final AdminActionLogService adminActionLogService;
 
     @Transactional(readOnly = true)
     public List<FeeRuleResponse> getAll() {
@@ -37,7 +39,23 @@ public class AdminFeeRuleService {
         }
         FeeRule rule = feeRuleRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND));
+        Object beforeValue = adminActionLogService.fields(
+                "minAmount", rule.getMinAmount(),
+                "feeRate", rule.getFeeRate()
+        );
         rule.update(req.getMinAmount(), req.getFeeRate());
+        adminActionLogService.record(
+                "FEE_RULE_UPDATE",
+                "FEE_RULE",
+                rule.getId(),
+                "수수료 정책",
+                beforeValue,
+                adminActionLogService.fields(
+                        "minAmount", rule.getMinAmount(),
+                        "feeRate", rule.getFeeRate()
+                ),
+                "수수료 정책 수정"
+        );
         return FeeRuleResponse.from(rule);
     }
 }

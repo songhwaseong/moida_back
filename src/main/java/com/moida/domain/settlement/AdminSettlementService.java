@@ -4,6 +4,7 @@ import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
 import com.moida.common.response.AdminSettlementResponse;
 import com.moida.common.response.AdminSettlementSummaryResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.wallet.WalletService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class AdminSettlementService {
 
     private final SettlementRepository settlementRepository;
     private final WalletService walletService;
+    private final AdminActionLogService adminActionLogService;
 
     @Transactional(readOnly = true)
     public List<AdminSettlementResponse> getAll() {
@@ -54,6 +56,7 @@ public class AdminSettlementService {
     public AdminSettlementResponse updateStatus(Long settlementId, Settlement.SettlementStatus next) {
         Settlement s = settlementRepository.findById(settlementId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND));
+        Settlement.SettlementStatus previousStatus = s.getStatus();
 
         switch (next) {
             case PAID -> {
@@ -76,6 +79,24 @@ public class AdminSettlementService {
             }
             case PENDING -> throw new BusinessException(ErrorCode.INVALID_INPUT, "PENDING 상태로의 변경은 허용되지 않습니다.");
         }
+        adminActionLogService.record(
+                "SETTLEMENT_STATUS_CHANGE",
+                "SETTLEMENT",
+                s.getId(),
+                s.getAuction().getProduct().getName(),
+                adminActionLogService.fields(
+                        "status", previousStatus,
+                        "sellerId", s.getSeller().getId(),
+                        "settledAmount", s.getSettledAmount()
+                ),
+                adminActionLogService.fields(
+                        "status", s.getStatus(),
+                        "sellerId", s.getSeller().getId(),
+                        "settledAmount", s.getSettledAmount(),
+                        "paidAt", s.getPaidAt()
+                ),
+                "정산 상태 변경"
+        );
         return AdminSettlementResponse.from(s);
     }
 }

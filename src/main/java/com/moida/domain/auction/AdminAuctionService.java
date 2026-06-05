@@ -4,6 +4,7 @@ import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
 import com.moida.common.response.AdminAuctionBidResponse;
 import com.moida.common.response.AdminAuctionResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.member.Member;
 import com.moida.domain.notification.Notification;
 import com.moida.domain.notification.NotificationService;
@@ -41,6 +42,7 @@ public class AdminAuctionService {
     private final FeeRuleRepository feeRuleRepository;
     private final NotificationService notificationService;
     private final AuctionCompletionService completionService;
+    private final AdminActionLogService adminActionLogService;
 
     /** 전체 경매 목록 (최신순) */
     @Transactional(readOnly = true)
@@ -67,6 +69,7 @@ public class AdminAuctionService {
         Auction auction = auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
         AuctionStatus previousStatus = auction.getStatus();
+        ProductStatus previousProductStatus = auction.getProduct().getStatus();
 
         switch (next) {
             case LIVE -> {
@@ -107,6 +110,23 @@ public class AdminAuctionService {
             case READY -> throw new BusinessException(ErrorCode.INVALID_INPUT,
                     "READY 상태로의 변경은 허용되지 않습니다.");
         }
+        adminActionLogService.record(
+                "AUCTION_STATUS_CHANGE",
+                "AUCTION",
+                auction.getId(),
+                auction.getProduct().getName(),
+                adminActionLogService.fields(
+                        "auctionStatus", previousStatus,
+                        "productStatus", previousProductStatus
+                ),
+                adminActionLogService.fields(
+                        "auctionStatus", auction.getStatus(),
+                        "productStatus", auction.getProduct().getStatus(),
+                        "winnerId", auction.getWinner() == null ? null : auction.getWinner().getId(),
+                        "winningPrice", auction.getWinningPrice()
+                ),
+                "경매 상태 변경"
+        );
         return AdminAuctionResponse.from(auction);
     }
 

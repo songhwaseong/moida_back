@@ -6,6 +6,7 @@ import com.moida.common.request.ProductChatMessageRequest;
 import com.moida.common.response.ProductChatMessageResponse;
 import com.moida.common.response.ProductChatMessagesResponse;
 import com.moida.common.response.ProductChatRoomResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.auction.AuctionRepository;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
@@ -40,6 +41,7 @@ public class ProductChatService {
     private final MemberRepository memberRepository;
     private final ProductChatRoomRepository productChatRoomRepository;
     private final ProductChatMessageRepository productChatMessageRepository;
+    private final AdminActionLogService adminActionLogService;
     private final Map<Long, CachedRoomMessages> recentMessagesCache = new ConcurrentHashMap<>();
 
     // 상품/경매 상세의 최초 렌더링과 REST fallback에서 사용한다.
@@ -117,7 +119,17 @@ public class ProductChatService {
     public ProductChatRoomResponse changeRoomStatus(Long roomId, ProductChatRoomStatus status) {
         ProductChatRoom room = productChatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND));
+        ProductChatRoomStatus previousStatus = room.getStatus();
         room.changeStatus(status);
+        adminActionLogService.record(
+                "CHAT_ROOM_STATUS_CHANGE",
+                "CHAT_ROOM",
+                room.getId(),
+                room.getProduct().getName(),
+                adminActionLogService.fields("status", previousStatus),
+                adminActionLogService.fields("status", room.getStatus()),
+                "채팅방 상태 변경"
+        );
         // 방 상태 변경은 사용자가 다시 입장할 때 즉시 반영되어야 한다.
         evictRecentMessages(room.getId());
         return ProductChatRoomResponse.from(room, productChatMessageRepository.countByRoomId(room.getId()));
@@ -127,7 +139,25 @@ public class ProductChatService {
     public ProductChatMessageResponse hideMessage(Long messageId, Long adminId) {
         ProductChatMessage message = productChatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND));
+        Object beforeValue = adminActionLogService.fields(
+                "hidden", message.getIsDeleted(),
+                "content", message.getContent(),
+                "senderId", message.getSender().getId()
+        );
         message.hide();
+        adminActionLogService.record(
+                "CHAT_MESSAGE_HIDE",
+                "CHAT_MESSAGE",
+                message.getId(),
+                message.getRoom().getProduct().getName(),
+                beforeValue,
+                adminActionLogService.fields(
+                        "hidden", message.getIsDeleted(),
+                        "content", message.getContent(),
+                        "senderId", message.getSender().getId()
+                ),
+                "채팅 메시지 숨김"
+        );
         // 숨김 처리한 메시지는 최근 메시지 캐시에서도 즉시 사라져야 한다.
         evictRecentMessages(message.getRoom().getId());
         return ProductChatMessageResponse.from(message, adminId);

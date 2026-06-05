@@ -6,6 +6,7 @@ import com.moida.common.request.BankAccountRequest;
 import com.moida.common.request.WalletAmountRequest;
 import com.moida.common.response.AdminWalletTransactionResponse;
 import com.moida.common.response.WalletResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class WalletService {
     private final MemberRepository memberRepository;
     private final MemberBankAccountRepository accountRepository;
     private final WalletTransactionRepository transactionRepository;
+    private final AdminActionLogService adminActionLogService;
 
     /**
      * 회원의 지갑 정보(잔액, 출금 계좌, 거래 내역)를 조회합니다.
@@ -133,6 +135,7 @@ public class WalletService {
 
         member.chargeBalance(transaction.getAmount());
         transaction.completeDeposit();
+        recordWalletAdminAction("WALLET_DEPOSIT_CONFIRM", transaction, "입금 요청 승인");
 
         return buildWalletResponse(member);
     }
@@ -153,6 +156,7 @@ public class WalletService {
 
         member.deductBalance(transaction.getAmount());
         transaction.completeWithdrawal();
+        recordWalletAdminAction("WALLET_WITHDRAWAL_CONFIRM", transaction, "출금 요청 승인");
 
         return buildWalletResponse(member);
     }
@@ -208,6 +212,7 @@ public class WalletService {
         validatePendingTransaction(transaction, WalletTransaction.TransactionType.DEPOSIT);
 
         transaction.cancelDeposit();
+        recordWalletAdminAction("WALLET_DEPOSIT_CANCEL", transaction, "입금 요청 취소");
 
         return buildWalletResponse(transaction.getMember());
     }
@@ -222,6 +227,7 @@ public class WalletService {
         validatePendingTransaction(transaction, WalletTransaction.TransactionType.WITHDRAW);
 
         transaction.cancelWithdrawal();
+        recordWalletAdminAction("WALLET_WITHDRAWAL_CANCEL", transaction, "출금 요청 취소");
 
         return buildWalletResponse(transaction.getMember());
     }
@@ -292,5 +298,23 @@ public class WalletService {
     private Member findMember(Long memberId) {
         return memberRepository.findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+    }
+
+    private void recordWalletAdminAction(String actionType, WalletTransaction transaction, String reason) {
+        adminActionLogService.record(
+                actionType,
+                "WALLET_TRANSACTION",
+                transaction.getId(),
+                transaction.getMember().getEmail(),
+                adminActionLogService.fields("status", WalletTransaction.TransactionStatus.PENDING),
+                adminActionLogService.fields(
+                        "status", transaction.getStatus(),
+                        "type", transaction.getType(),
+                        "memberId", transaction.getMember().getId(),
+                        "amount", transaction.getAmount(),
+                        "description", transaction.getDescription()
+                ),
+                reason
+        );
     }
 }

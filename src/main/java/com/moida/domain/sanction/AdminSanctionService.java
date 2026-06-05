@@ -4,6 +4,7 @@ import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
 import com.moida.common.request.AdminSanctionRequest;
 import com.moida.common.response.AdminSanctionResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
 import com.moida.security.CustomUserDetails;
@@ -25,6 +26,7 @@ public class AdminSanctionService {
 
     private final SanctionRepository sanctionRepository;
     private final MemberRepository memberRepository;
+    private final AdminActionLogService adminActionLogService;
 
     @Transactional(readOnly = true)
     public List<AdminSanctionResponse> getAll() {
@@ -62,6 +64,11 @@ public class AdminSanctionService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Member admin = memberRepository.findById(adminDetails.getMemberId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Object beforeValue = adminActionLogService.fields(
+                "status", target.getStatus(),
+                "sanctionCount", target.getSanctionCount(),
+                "suspendedUntil", target.getSuspendedUntil()
+        );
 
         // 1) Member 도메인 메서드로 상태/카운트 갱신 (정지일이 있는 유형은 expiresAt 도 함께 계산)
         LocalDateTime now = LocalDateTime.now();
@@ -88,6 +95,23 @@ public class AdminSanctionService {
                 .adminNote(request.getAdminNote())
                 .expiresAt(expiresAt)
                 .build();
-        return AdminSanctionResponse.from(sanctionRepository.save(sanction));
+        Sanction saved = sanctionRepository.save(sanction);
+        adminActionLogService.record(
+                "SANCTION_CREATE",
+                "MEMBER",
+                target.getId(),
+                target.getMemberNo(),
+                beforeValue,
+                adminActionLogService.fields(
+                        "status", target.getStatus(),
+                        "sanctionCount", target.getSanctionCount(),
+                        "suspendedUntil", target.getSuspendedUntil(),
+                        "sanctionId", saved.getId(),
+                        "type", saved.getType(),
+                        "reason", saved.getReason()
+                ),
+                "회원 제재 등록"
+        );
+        return AdminSanctionResponse.from(saved);
     }
 }

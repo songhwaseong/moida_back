@@ -5,6 +5,7 @@ import com.moida.common.exception.ErrorCode;
 import com.moida.common.request.FaqRequest;
 import com.moida.common.response.ApiResponse;
 import com.moida.common.response.FaqResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.faq.Faq;
 import com.moida.domain.faq.FaqRepository;
 import jakarta.validation.Valid;
@@ -29,6 +30,7 @@ import java.util.List;
 public class AdminFaqController {
 
     private final FaqRepository faqRepository;
+    private final AdminActionLogService adminActionLogService;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -60,6 +62,21 @@ public class AdminFaqController {
                 .displayOrder(request.order())
                 .visible(request.visible())
                 .build());
+        adminActionLogService.record(
+                "FAQ_CREATE",
+                "FAQ",
+                faq.getId(),
+                faq.getQuestion(),
+                null,
+                adminActionLogService.fields(
+                        "category", faq.getCategory(),
+                        "question", faq.getQuestion(),
+                        "answer", faq.getAnswer(),
+                        "displayOrder", faq.getDisplayOrder(),
+                        "visible", faq.getVisible()
+                ),
+                "FAQ 등록"
+        );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -74,6 +91,13 @@ public class AdminFaqController {
     ) {
         Faq faq = findFaq(id);
         validateDisplayOrderAvailable(id, request.order());
+        Object beforeValue = adminActionLogService.fields(
+                "category", faq.getCategory(),
+                "question", faq.getQuestion(),
+                "answer", faq.getAnswer(),
+                "displayOrder", faq.getDisplayOrder(),
+                "visible", faq.getVisible()
+        );
 
         faq.update(
                 request.category(),
@@ -81,6 +105,21 @@ public class AdminFaqController {
                 request.answer(),
                 request.order(),
                 request.visible()
+        );
+        adminActionLogService.record(
+                "FAQ_UPDATE",
+                "FAQ",
+                faq.getId(),
+                faq.getQuestion(),
+                beforeValue,
+                adminActionLogService.fields(
+                        "category", faq.getCategory(),
+                        "question", faq.getQuestion(),
+                        "answer", faq.getAnswer(),
+                        "displayOrder", faq.getDisplayOrder(),
+                        "visible", faq.getVisible()
+                ),
+                "FAQ 수정"
         );
 
         return ResponseEntity.ok(ApiResponse.success(FaqResponse.from(faq), "FAQ가 수정되었습니다."));
@@ -90,6 +129,21 @@ public class AdminFaqController {
     @Transactional
     public ResponseEntity<ApiResponse<Void>> deleteFaq(@PathVariable Long id) {
         Faq faq = findFaq(id);
+        adminActionLogService.record(
+                "FAQ_DELETE",
+                "FAQ",
+                faq.getId(),
+                faq.getQuestion(),
+                adminActionLogService.fields(
+                        "category", faq.getCategory(),
+                        "question", faq.getQuestion(),
+                        "answer", faq.getAnswer(),
+                        "displayOrder", faq.getDisplayOrder(),
+                        "visible", faq.getVisible()
+                ),
+                null,
+                "FAQ 삭제"
+        );
         faqRepository.delete(faq);
         return ResponseEntity.ok(ApiResponse.success(null, "FAQ가 삭제되었습니다."));
     }

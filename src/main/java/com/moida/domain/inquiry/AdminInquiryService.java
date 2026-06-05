@@ -3,6 +3,7 @@ package com.moida.domain.inquiry;
 import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
 import com.moida.common.response.InquiryResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.notification.Notification;
 import com.moida.domain.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class AdminInquiryService {
 
     private final InquiryRepository inquiryRepository;
     private final NotificationService notificationService;
+    private final AdminActionLogService adminActionLogService;
 
     /** 전체 문의 목록 (최신순) */
     @Transactional(readOnly = true)
@@ -38,7 +40,17 @@ public class AdminInquiryService {
         }
         Inquiry inquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND));
+        String previousAnswer = inquiry.getAnswer();
         inquiry.answer(text.trim());
+        adminActionLogService.record(
+                "INQUIRY_ANSWER",
+                "INQUIRY",
+                inquiry.getId(),
+                inquiry.getProduct().getName(),
+                adminActionLogService.fields("answer", previousAnswer),
+                adminActionLogService.fields("answer", inquiry.getAnswer()),
+                "상품 문의 답변 등록/수정"
+        );
         notificationService.createAndPush(
                 inquiry.getUser(),
                 Notification.NotificationType.INQUIRY_ANSWERED,
@@ -54,15 +66,37 @@ public class AdminInquiryService {
     public void removeAnswer(Long inquiryId) {
         Inquiry inquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND));
+        String previousAnswer = inquiry.getAnswer();
         inquiry.removeAnswer();
+        adminActionLogService.record(
+                "INQUIRY_ANSWER_DELETE",
+                "INQUIRY",
+                inquiry.getId(),
+                inquiry.getProduct().getName(),
+                adminActionLogService.fields("answer", previousAnswer),
+                adminActionLogService.fields("answer", inquiry.getAnswer()),
+                "상품 문의 답변 삭제"
+        );
     }
 
     /** 문의 자체 삭제 (hard delete) */
     @Transactional
     public void delete(Long inquiryId) {
-        if (!inquiryRepository.existsById(inquiryId)) {
-            throw new BusinessException(ErrorCode.ENTITY_NOT_FOUND);
-        }
-        inquiryRepository.deleteById(inquiryId);
+        Inquiry inquiry = inquiryRepository.findById(inquiryId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND));
+        adminActionLogService.record(
+                "INQUIRY_DELETE",
+                "INQUIRY",
+                inquiry.getId(),
+                inquiry.getProduct().getName(),
+                adminActionLogService.fields(
+                        "question", inquiry.getQuestion(),
+                        "answer", inquiry.getAnswer(),
+                        "userId", inquiry.getUser().getId()
+                ),
+                null,
+                "상품 문의 삭제"
+        );
+        inquiryRepository.delete(inquiry);
     }
 }

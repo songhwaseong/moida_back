@@ -6,6 +6,7 @@ import com.moida.common.request.AdminProductUpdateRequest;
 import com.moida.common.response.AdminProductDetailResponse;
 import com.moida.common.response.AdminProductResponse;
 import com.moida.common.response.AdminProductStatsResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.auction.Auction;
 import com.moida.domain.auction.AuctionPolicyService;
 import com.moida.domain.auction.AuctionRepository;
@@ -36,6 +37,7 @@ public class AdminProductService {
     private final AuctionRepository auctionRepository;
     private final NotificationService notificationService;
     private final AuctionPolicyService auctionPolicyService;
+    private final AdminActionLogService adminActionLogService;
     /** 최소 호가 단위 기본값. 등록 시 입력값을 저장하지 않으므로 보수적으로 1,000원으로 둔다. */
     private static final long DEFAULT_MIN_BID_UNIT = 1_000L;
     /** 시연용: 경매예정(SCHEDULED) 진입 후 자동으로 LIVE 로 전환되기까지의 대기 시간(초). */
@@ -79,6 +81,13 @@ public class AdminProductService {
     public void updateProduct(Long productId, AdminProductUpdateRequest request) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+        Object beforeValue = adminActionLogService.fields(
+                "name", product.getName(),
+                "description", product.getDescription(),
+                "category", product.getCategory().getName(),
+                "condition", product.getCondition(),
+                "price", product.getPrice()
+        );
 
         // 카테고리는 이름으로 조회 (null/빈 값이면 변경하지 않음)
         Category category = null;
@@ -99,6 +108,21 @@ public class AdminProductService {
 
         // Product.update 는 null 필드를 건너뛰므로 변경된 값만 반영된다. (location 은 미수정)
         product.update(request.getName(), request.getDescription(), category, condition, request.getPrice(), null);
+        adminActionLogService.record(
+                "PRODUCT_UPDATE",
+                "PRODUCT",
+                product.getId(),
+                product.getName(),
+                beforeValue,
+                adminActionLogService.fields(
+                        "name", product.getName(),
+                        "description", product.getDescription(),
+                        "category", product.getCategory().getName(),
+                        "condition", product.getCondition(),
+                        "price", product.getPrice()
+                ),
+                "상품 정보 수정"
+        );
     }
 
     /** 상품 상태 변경 */
@@ -135,6 +159,15 @@ public class AdminProductService {
         if (previousStatus == ProductStatus.PENDING && status == ProductStatus.SCHEDULED) {
             notifyProductApproved(product);
         }
+        adminActionLogService.record(
+                "PRODUCT_STATUS_CHANGE",
+                "PRODUCT",
+                product.getId(),
+                product.getName(),
+                adminActionLogService.fields("status", previousStatus),
+                adminActionLogService.fields("status", product.getStatus(), "auctionScheduledAt", product.getAuctionScheduledAt()),
+                "상품 상태 변경"
+        );
     }
 
     private void notifyProductApproved(Product product) {
@@ -217,6 +250,16 @@ public class AdminProductService {
     public void delete(Long productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+        ProductStatus previousStatus = product.getStatus();
         product.changeStatus(ProductStatus.DELETED);
+        adminActionLogService.record(
+                "PRODUCT_DELETE",
+                "PRODUCT",
+                product.getId(),
+                product.getName(),
+                adminActionLogService.fields("status", previousStatus),
+                adminActionLogService.fields("status", product.getStatus()),
+                "상품 삭제"
+        );
     }
 }

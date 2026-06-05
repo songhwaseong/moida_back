@@ -5,6 +5,7 @@ import com.moida.common.exception.ErrorCode;
 import com.moida.common.request.NoticeRequest;
 import com.moida.common.response.ApiResponse;
 import com.moida.common.response.NoticeResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
 import com.moida.domain.member.MemberStatus;
@@ -38,6 +39,7 @@ public class AdminNoticeController {
     private final NoticeRepository noticeRepository;
     private final MemberRepository memberRepository;
     private final NotificationService notificationService;
+    private final AdminActionLogService adminActionLogService;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -72,6 +74,21 @@ public class AdminNoticeController {
                 .status(parseStatus(request.status()))
                 .isPinned(request.isPinned())
                 .build());
+        adminActionLogService.record(
+                "NOTICE_CREATE",
+                "NOTICE",
+                notice.getId(),
+                notice.getTitle(),
+                null,
+                adminActionLogService.fields(
+                        "title", notice.getTitle(),
+                        "content", notice.getContent(),
+                        "category", notice.getCategory(),
+                        "status", notice.getStatus(),
+                        "isPinned", notice.getIsPinned()
+                ),
+                "공지사항 등록"
+        );
 
         if (notice.getStatus() == Notice.NoticeStatus.PUBLISHED) {
             notifyPublishedNotice(notice);
@@ -89,12 +106,34 @@ public class AdminNoticeController {
             @Valid @RequestBody NoticeRequest request
     ) {
         Notice notice = findNotice(id);
+        Object beforeValue = adminActionLogService.fields(
+                "title", notice.getTitle(),
+                "content", notice.getContent(),
+                "category", notice.getCategory(),
+                "status", notice.getStatus(),
+                "isPinned", notice.getIsPinned()
+        );
         notice.update(
                 request.title(),
                 request.content(),
                 parseCategory(request.category()),
                 parseStatus(request.status()),
                 request.isPinned()
+        );
+        adminActionLogService.record(
+                "NOTICE_UPDATE",
+                "NOTICE",
+                notice.getId(),
+                notice.getTitle(),
+                beforeValue,
+                adminActionLogService.fields(
+                        "title", notice.getTitle(),
+                        "content", notice.getContent(),
+                        "category", notice.getCategory(),
+                        "status", notice.getStatus(),
+                        "isPinned", notice.getIsPinned()
+                ),
+                "공지사항 수정"
         );
         return ResponseEntity.ok(ApiResponse.success(NoticeResponse.from(notice), "공지사항이 수정되었습니다."));
     }
@@ -103,6 +142,21 @@ public class AdminNoticeController {
     @Transactional
     public ResponseEntity<ApiResponse<Void>> deleteNotice(@PathVariable Long id) {
         Notice notice = findNotice(id);
+        adminActionLogService.record(
+                "NOTICE_DELETE",
+                "NOTICE",
+                notice.getId(),
+                notice.getTitle(),
+                adminActionLogService.fields(
+                        "title", notice.getTitle(),
+                        "content", notice.getContent(),
+                        "category", notice.getCategory(),
+                        "status", notice.getStatus(),
+                        "isPinned", notice.getIsPinned()
+                ),
+                null,
+                "공지사항 삭제"
+        );
         noticeRepository.delete(notice);
         return ResponseEntity.ok(ApiResponse.success(null, "공지사항이 삭제되었습니다."));
     }

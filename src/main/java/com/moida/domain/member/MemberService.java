@@ -9,6 +9,7 @@ import com.moida.common.request.UpdateProfileRequest;
 import com.moida.common.response.AccountDeactivationInfoResponse;
 import com.moida.common.response.AdminDeactivatedMemberResponse;
 import com.moida.common.response.MemberProfileResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.auction.AuctionRepository;
 import com.moida.domain.auction.BidRepository;
 import com.moida.domain.product.ProductLikeRepository;
@@ -38,6 +39,7 @@ public class MemberService {
     private final BidRepository bidRepository;
     private final ProductLikeRepository productLikeRepository;
     private final MemberSocialAccountRepository socialAccountRepository;
+    private final AdminActionLogService adminActionLogService;
 
     public Optional<Member> findByEmail(String email) {
         return memberRepository.findByEmail(email);
@@ -141,7 +143,17 @@ public class MemberService {
     @Transactional
     public void updateMemberRole(Long id, MemberRole role) {
         Member member = findById(id);
+        MemberRole previousRole = member.getRole();
         member.updateRole(role);
+        adminActionLogService.record(
+                "MEMBER_ROLE_CHANGE",
+                "MEMBER",
+                member.getId(),
+                member.getEmail(),
+                adminActionLogService.fields("role", previousRole),
+                adminActionLogService.fields("role", member.getRole()),
+                "회원 권한 변경"
+        );
     }
 
     public AccountDeactivationInfoResponse getAccountDeactivationInfo(Long memberId) {
