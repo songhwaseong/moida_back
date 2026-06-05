@@ -16,14 +16,14 @@ import com.moida.domain.wallet.WalletTransaction;
 import com.moida.domain.wallet.WalletTransactionRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.data.domain.Sort;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Optional;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +37,7 @@ public class MemberService {
     private final AuctionRepository auctionRepository;
     private final BidRepository bidRepository;
     private final ProductLikeRepository productLikeRepository;
+    private final MemberSocialAccountRepository socialAccountRepository;
 
     public Optional<Member> findByEmail(String email) {
         return memberRepository.findByEmail(email);
@@ -62,30 +63,65 @@ public class MemberService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND, "일치하는 회원 정보를 찾을 수 없습니다."));
     }
 
-
     @Transactional
-    public void completeSocialProfile(String email, String nickname, String phone) {
+    public Member completeSocialProfile(String email, String nickname, String phone) {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        String normalizedPhone = normalizePhone(phone);
+        if (normalizedPhone.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "휴대폰 번호를 입력해주세요.");
+        }
+
+        Member existing = findActiveMemberByPhone(normalizedPhone, member.getId()).orElse(null);
+        if (existing != null) {
+            relinkSocialAccounts(member, existing);
+            existing.updateNickname(nickname);
+            if (existing.getPhone() == null || existing.getPhone().isBlank()) {
+                existing.updateProfile(null, normalizedPhone, null, null);
+            }
+            memberRepository.delete(member);
+            return existing;
+        }
+
         member.updateNickname(nickname);
-        member.updateProfile(null, phone, null, null);
+        member.updateProfile(null, normalizedPhone, null, null);
+        return member;
     }
 
     @Transactional
     public void signup(SignupRequest dto) {
-        // memberNo 자동 생성 (예: 2026050900001)
-        String memberNo = LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-                + String.format("%05d", memberRepository.count() + 1);
+        String email = normalizeRequiredText(dto.getEmail());
+        String normalizedPhone = normalizePhone(dto.getPhone());
+        Optional<Member> emailOwner = memberRepository.findByEmail(email);
+        Optional<Member> phoneOwner = findActiveMemberByPhone(normalizedPhone, null);
 
+        if (emailOwner.isPresent()) {
+            boolean sameVerifiedPhone = phoneOwner
+                    .map(member -> member.getId().equals(emailOwner.get().getId()))
+                    .orElse(false);
+            if (!sameVerifiedPhone) {
+                throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
+            }
+            registerLocalLogin(emailOwner.get(), dto, email, normalizedPhone);
+            return;
+        }
+
+        if (phoneOwner.isPresent()) {
+            Member existing = phoneOwner.get();
+            if (existing.getSocialLogin() == null || existing.getSocialLogin().isBlank()) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 가입된 휴대폰 번호입니다. 기존 계정으로 로그인해주세요.");
+            }
+            registerLocalLogin(existing, dto, email, normalizedPhone);
+            return;
+        }
 
         Member member = Member.builder()
-                .memberNo(memberNo)
-                .email(dto.getEmail())
+                .memberNo(generateMemberNo())
+                .email(email)
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .name(dto.getName())
                 .nickname(dto.getNickname())
-                .phone(dto.getPhone())
+                .phone(normalizedPhone)
                 .location(dto.getLocation())
                 .role(MemberRole.USER)
                 .build();
@@ -94,19 +130,16 @@ public class MemberService {
     }
 
     public Member findById(Long id) {
-        // id로 회원 조회, 없으면 예외
         return memberRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
     }
 
     public List<Member> findAll() {
-        // 최신 가입순으로 정렬
         return memberRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 
     @Transactional
     public void updateMemberRole(Long id, MemberRole role) {
-        // 회원 조회 후 역할 변경 (더티 체킹으로 자동 저장)
         Member member = findById(id);
         member.updateRole(role);
     }
@@ -123,7 +156,6 @@ public class MemberService {
                 ? request
                 : new DeactivateAccountRequest(null, null, null, null);
 
-        // 정산/출금 여지가 남은 계정은 탈퇴를 막는다.
         if (!member.isActive()) {
             throw new BusinessException(ErrorCode.ACCOUNT_DEACTIVATION_BLOCKED, "이미 탈퇴했거나 이용할 수 없는 계정입니다.");
         }
@@ -137,7 +169,6 @@ public class MemberService {
         String reasonCode = requireReasonCode(safeRequest.reasonCode());
         String reasonDetail = normalizeOptionalText(safeRequest.reasonDetail(), 500);
 
-        // 개인정보는 즉시 삭제하지 않고 탈퇴 상태로만 전환한다.
         member.deactivateAccount(reasonCode, reasonDetail);
     }
 
@@ -192,10 +223,53 @@ public class MemberService {
         return phone == null ? "" : phone.replaceAll("[^0-9]", "");
     }
 
+    private Optional<Member> findActiveMemberByPhone(String normalizedPhone, Long excludedMemberId) {
+        if (normalizedPhone == null || normalizedPhone.isBlank()) {
+            return Optional.empty();
+        }
+        return memberRepository.findAllByStatus(MemberStatus.ACTIVE).stream()
+                .filter(member -> excludedMemberId == null || !member.getId().equals(excludedMemberId))
+                .filter(member -> normalizedPhone.equals(normalizePhone(member.getPhone())))
+                .findFirst();
+    }
+
+    private void relinkSocialAccounts(Member source, Member target) {
+        List<MemberSocialAccount> sourceAccounts = socialAccountRepository.findAllByMemberId(source.getId());
+        for (MemberSocialAccount sourceAccount : sourceAccounts) {
+            Optional<MemberSocialAccount> targetAccount =
+                    socialAccountRepository.findByMemberIdAndProvider(target.getId(), sourceAccount.getProvider());
+            if (targetAccount.isPresent()) {
+                boolean sameProviderUser = targetAccount.get().getProviderUserId().equals(sourceAccount.getProviderUserId());
+                if (!sameProviderUser) {
+                    throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 연결된 같은 소셜 로그인 계정이 있습니다.");
+                }
+                continue;
+            }
+            sourceAccount.relink(target);
+        }
+    }
+
+    private void registerLocalLogin(Member member, SignupRequest dto, String email, String normalizedPhone) {
+        member.registerLocalCredentials(
+                email,
+                passwordEncoder.encode(dto.getPassword()),
+                dto.getName(),
+                dto.getNickname(),
+                normalizedPhone,
+                dto.getLocation()
+        );
+    }
+
+    private String generateMemberNo() {
+        return LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+                + String.format("%05d", memberRepository.count() + 1);
+    }
+
     public MemberProfileResponse getMemberProfile(Long memberId) {
         Member member = findById(memberId);
-        int winCount  = (int) auctionRepository.countByWinnerId(memberId);
-        int bidCount  = (int) bidRepository.countByBidderId(memberId);
+        int winCount = (int) auctionRepository.countByWinnerId(memberId);
+        int bidCount = (int) bidRepository.countByBidderId(memberId);
         int wishCount = (int) productLikeRepository.countByMemberId(memberId);
         return new MemberProfileResponse(member, winCount, bidCount, wishCount);
     }

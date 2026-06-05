@@ -86,6 +86,7 @@ public class ProductService {
         String carrierCode = normalizeShipmentValue(request.getCarrierCode());
         String trackingNo = normalizeTrackingNo(request.getTrackingNo());
         validateShipment(carrierCode, trackingNo);
+        validateAuctionPrices(request.getPrice(), request.getMinBidUnit(), request.getBuyNowPrice());
 
         // 4. Product 엔티티 생성 (프로젝트가 경매-only로 피벗되어 type은 AUCTION 고정)
         // immediatePrice / minBidUnit 은 등록 단계에서 입력받아 Product 에 함께 보관한다.
@@ -145,6 +146,10 @@ public class ProductService {
             category = categoryRepository.findByNameAndIsActiveTrue(request.getCategory())
                     .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT, "존재하지 않는 카테고리입니다."));
         }
+
+        Long nextPrice = request.getPrice() != null ? request.getPrice() : product.getPrice();
+        Long nextMinBidUnit = request.getMinBidUnit() != null ? request.getMinBidUnit() : product.getMinBidUnit();
+        validateAuctionPrices(nextPrice, nextMinBidUnit, request.getImmediatePrice());
 
         // null 필드는 Product.update 에서 건너뛰므로 전달된 값만 반영된다.
         product.update(
@@ -251,6 +256,18 @@ public class ProductService {
         }
         if (carrierCode != null && !SUPPORTED_CARRIER_CODES.contains(carrierCode)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "지원하지 않는 택배사입니다.");
+        }
+    }
+
+    private void validateAuctionPrices(Long startPrice, Long minBidUnit, Long immediatePrice) {
+        if (startPrice == null || startPrice <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "경매 시작가는 1원 이상이어야 합니다.");
+        }
+        if (minBidUnit == null || minBidUnit <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "최소 호가 단위는 1원 이상이어야 합니다.");
+        }
+        if (immediatePrice != null && immediatePrice < startPrice + minBidUnit) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "즉시낙찰가는 경매 시작가와 최소 호가 단위를 더한 금액 이상이어야 합니다.");
         }
     }
 

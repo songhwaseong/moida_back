@@ -1,73 +1,129 @@
 package com.moida.domain.member;
 
-import com.moida.common.response.*;                                     // 소셜 로그인 DTO (Kakao, Naver, Google)
-import jakarta.transaction.Transactional;                               // DB 작업 실패 시 자동 롤백
-import lombok.RequiredArgsConstructor;                                  // final 필드 자동 생성자 주입
-import org.springframework.beans.factory.annotation.Value;              // yml 값 읽어오는 어노테이션
-import org.springframework.http.*;                                      // HttpHeaders, HttpMethod, HttpEntity, MediaType
-import org.springframework.security.crypto.password.PasswordEncoder;    // 신규 소셜 회원 임시 비밀번호 암호화
-import org.springframework.stereotype.Service;                          // Spring 서비스 컴포넌트 등록
-import org.springframework.util.LinkedMultiValueMap;                    // POST body 파라미터 담는 Map
-import org.springframework.util.MultiValueMap;                          // LinkedMultiValueMap 인터페이스
-import org.springframework.web.client.RestTemplate;                     // 소셜 API 서버에 HTTP 요청 보내는 클라이언트
+import com.moida.common.response.GoogleTokenResponse;
+import com.moida.common.response.GoogleUserResponse;
+import com.moida.common.response.KakaoTokenResponse;
+import com.moida.common.response.KakaoUserResponse;
+import com.moida.common.response.NaverTokenResponse;
+import com.moida.common.response.NaverUserResponse;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDateTime;                                         // memberNo 생성 시 현재 날짜
-import java.time.format.DateTimeFormatter;                              // 날짜를 yyyyMMdd 형식으로 포맷
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Service
 @RequiredArgsConstructor
 public class SocialLoginService {
-    private final MemberRepository memberRepository;    // 회원 조회 및 저장
-    private final PasswordEncoder passwordEncoder;       // 임시 비밀번호 암호화
-    private final RestTemplate restTemplate = new RestTemplate(); // 소셜 API HTTP 클라이언트
+    private final MemberRepository memberRepository;
+    private final MemberSocialAccountRepository socialAccountRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${social.kakao.client-id}")
-    private String kkoClientId;         // application.yml → 환경변수 KAKAO_CLIENT_ID
+    private String kkoClientId;
 
     @Value("${social.kakao.redirect-uri}")
-    private String kkoRedirectUri;      // application.yml → 환경변수 KAKAO_REDIRECT_URI
+    private String kkoRedirectUri;
 
     @Value("${social.naver.client-id}")
-    private String navClientId;         // application.yml → 환경변수 NAVER_CLIENT_ID
+    private String navClientId;
 
     @Value("${social.naver.client-secret}")
-    private String navClientSecret;     // application.yml → 환경변수 NAVER_CLIENT_SECRET
+    private String navClientSecret;
 
     @Value("${social.naver.redirect-uri}")
-    private String navRedirectUri;      // application.yml → 환경변수 NAVER_REDIRECT_URI
+    private String navRedirectUri;
 
     @Value("${social.google.client-id}")
-    private String googleClientId;      // application.yml → 환경변수 GOOGLE_CLIENT_ID
+    private String googleClientId;
 
     @Value("${social.google.client-secret}")
-    private String googleClientSecret;  // application.yml → 환경변수 GOOGLE_CLIENT_SECRET
+    private String googleClientSecret;
 
     @Value("${social.google.redirect-uri}")
-    private String googleRedirectUri;   // application.yml → 환경변수 GOOGLE_REDIRECT_URI
+    private String googleRedirectUri;
 
-    // ===== 공통 =====
+    public record SocialLoginResult(Member member, boolean newUser) {
+    }
 
-    // 이메일로 기존 회원 조회 → 없으면 자동 가입 후 반환
     @Transactional
-    public Member findOrRegisterSocialMember(String email, String name, String socialType) {
+    public SocialLoginResult findOrRegisterSocialMember(String email, String name, String socialType, String providerUserId) {
+        SocialProvider provider = SocialProvider.from(socialType);
+        String normalizedProviderUserId = requireProviderUserId(providerUserId);
+        String normalizedEmail = normalizeEmail(email, provider, normalizedProviderUserId);
+        String displayName = (name == null || name.isBlank()) ? provider.name() + " 회원" : name.trim();
+
+        return socialAccountRepository.findByProviderAndProviderUserId(provider, normalizedProviderUserId)
+                .map(account -> new SocialLoginResult(findMember(account.getMember().getId()), false))
+                .orElseGet(() -> linkOrCreateMember(normalizedEmail, displayName, provider, normalizedProviderUserId));
+    }
+
+    private SocialLoginResult linkOrCreateMember(String email, String name, SocialProvider provider, String providerUserId) {
         return memberRepository.findByEmail(email)
+                .map(member -> {
+                    saveSocialAccount(member, provider, providerUserId, email);
+                    return new SocialLoginResult(member, false);
+                })
                 .orElseGet(() -> {
-                    String memberNo = LocalDateTime.now()
-                            .format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-                            + String.format("%05d", memberRepository.count() + 1);
-                    return memberRepository.save(Member.builder()
-                            .memberNo(memberNo)
+                    Member member = memberRepository.save(Member.builder()
+                            .memberNo(generateMemberNo())
                             .email(email)
-                            .password(passwordEncoder.encode(socialType + "_SOCIAL")) // 소셜 회원 임시 비밀번호
+                            .password(passwordEncoder.encode(provider.name() + "_SOCIAL"))
                             .name(name)
                             .role(MemberRole.USER)
-                            .socialLogin(socialType) // "KAKAO" / "NAVER" / "GOOGLE"
+                            .socialLogin(provider.name())
                             .build());
+                    saveSocialAccount(member, provider, providerUserId, email);
+                    return new SocialLoginResult(member, true);
                 });
     }
-    // ===== 카카오 =====
 
-    // 인가 코드 → 액세스 토큰 교환
+    private void saveSocialAccount(Member member, SocialProvider provider, String providerUserId, String email) {
+        socialAccountRepository.findByMemberIdAndProvider(member.getId(), provider)
+                .orElseGet(() -> socialAccountRepository.save(MemberSocialAccount.builder()
+                        .member(member)
+                        .provider(provider)
+                        .providerUserId(providerUserId)
+                        .providerEmail(email)
+                        .build()));
+    }
+
+    private String generateMemberNo() {
+        return LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+                + String.format("%05d", memberRepository.count() + 1);
+    }
+
+    private String requireProviderUserId(String providerUserId) {
+        if (providerUserId == null || providerUserId.isBlank()) {
+            throw new IllegalArgumentException("Social provider user id is required.");
+        }
+        return providerUserId.trim();
+    }
+
+    private String normalizeEmail(String email, SocialProvider provider, String providerUserId) {
+        if (email != null && !email.isBlank()) {
+            return email.trim();
+        }
+        return provider.name().toLowerCase() + "-" + providerUserId + "@social.moida.local";
+    }
+
+    private Member findMember(Long memberId) {
+        return memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalStateException("Linked social member not found."));
+    }
+
     public String getKkoAccessToken(String code) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -84,7 +140,6 @@ public class SocialLoginService {
         return response.getAccessToken();
     }
 
-    // 액세스 토큰 → 카카오 사용자 정보 조회
     public KakaoUserResponse getKakaoUserInfo(String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
@@ -95,9 +150,7 @@ public class SocialLoginService {
                 KakaoUserResponse.class
         ).getBody();
     }
-    // ===== 네이버 =====
 
-    // 인가 코드 + state → 액세스 토큰 교환 (네이버는 GET 방식)
     public String getNavAccessToken(String code, String state) {
         String url = "https://nid.naver.com/oauth2.0/token"
                 + "?grant_type=authorization_code"
@@ -109,7 +162,6 @@ public class SocialLoginService {
         return response.getAccessToken();
     }
 
-    // 액세스 토큰 → 네이버 사용자 정보 조회
     public NaverUserResponse getNaverUserInfo(String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
@@ -121,9 +173,6 @@ public class SocialLoginService {
         ).getBody();
     }
 
-    // ===== 구글 =====
-
-    // 인가 코드 → 액세스 토큰 교환
     public String getGoogleAccessToken(String code) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -141,7 +190,6 @@ public class SocialLoginService {
         return response.getAccessToken();
     }
 
-    // 액세스 토큰 → 구글 사용자 정보 조회
     public GoogleUserResponse getGoogleUserInfo(String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);

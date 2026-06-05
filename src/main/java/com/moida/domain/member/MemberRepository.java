@@ -18,6 +18,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     List<Member> findAllByNameAndStatus(String name, MemberStatus status);
 
+    List<Member> findAllByStatus(MemberStatus status);
+
     /**
      * 회원 ID로 회원 정보를 조회하며, 비관적 쓰기 락(Pessimistic Write Lock)을 획득합니다.
      * 동시성 이슈를 방지해야 하는 비즈니스 로직(예: 잔액 변경)에서 사용합니다.

@@ -146,6 +146,16 @@ public class Member extends BaseTimeEntity {
         this.password = encodedPassword;
     }
 
+    public void registerLocalCredentials(String email, String encodedPassword, String name,
+                                         String nickname, String phone, String location) {
+        if (email != null && !email.isBlank()) this.email = email;
+        if (encodedPassword != null && !encodedPassword.isBlank()) this.password = encodedPassword;
+        if (name != null && !name.isBlank()) this.name = name;
+        updateNickname(nickname);
+        updateProfile(null, phone, location, null);
+        this.socialLogin = null;
+    }
+
     public void updateLastLogin() {
         this.lastLoginAt = LocalDateTime.now();
     }
