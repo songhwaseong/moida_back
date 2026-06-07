@@ -127,7 +127,7 @@ public class AdminProductService {
 
     /** 상품 상태 변경 */
     @Transactional
-    public void updateStatus(Long productId, ProductStatus status) {
+    public void updateStatus(Long productId, ProductStatus status, String reason) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
         ProductStatus previousStatus = product.getStatus();
@@ -166,7 +166,7 @@ public class AdminProductService {
                 product.getName(),
                 adminActionLogService.fields("status", previousStatus),
                 adminActionLogService.fields("status", product.getStatus(), "auctionScheduledAt", product.getAuctionScheduledAt()),
-                "상품 상태 변경"
+                reason
         );
     }
 
@@ -247,7 +247,7 @@ public class AdminProductService {
 
     /** 상품 삭제 (soft delete: 상태를 DELETED로 변경) */
     @Transactional
-    public void delete(Long productId) {
+    public void delete(Long productId, String reason) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
         ProductStatus previousStatus = product.getStatus();
@@ -259,7 +259,7 @@ public class AdminProductService {
                 product.getName(),
                 adminActionLogService.fields("status", previousStatus),
                 adminActionLogService.fields("status", product.getStatus()),
-                "상품 삭제"
+                reason
         );
     }
 }

@@ -65,7 +65,7 @@ public class AdminAuctionService {
 
     /** 관리자 상태 변경 */
     @Transactional
-    public AdminAuctionResponse updateStatus(Long auctionId, AuctionStatus next) {
+    public AdminAuctionResponse updateStatus(Long auctionId, AuctionStatus next, String reason) {
         Auction auction = auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
         AuctionStatus previousStatus = auction.getStatus();
@@ -125,7 +125,7 @@ public class AdminAuctionService {
                         "winnerId", auction.getWinner() == null ? null : auction.getWinner().getId(),
                         "winningPrice", auction.getWinningPrice()
                 ),
-                "경매 상태 변경"
+                reason
         );
         return AdminAuctionResponse.from(auction);
     }

@@ -46,6 +46,31 @@ public class AdminActionLogService {
                 .build());
     }
 
+    public void recordView(String actionType, String targetType, Object criteria) {
+        record(
+                actionType,
+                targetType,
+                null,
+                "VIEW",
+                null,
+                criteria,
+                "민감 관리자 데이터 조회"
+        );
+    }
+
+    public void recordFailure(String actionType, String targetType, Long targetId, String targetName,
+                              Object attemptedValue, String reason) {
+        record(
+                actionType,
+                targetType,
+                targetId,
+                targetName,
+                null,
+                attemptedValue,
+                reason
+        );
+    }
+
     public Map<String, Object> fields(Object... pairs) {
         Map<String, Object> values = new LinkedHashMap<>();
         if (pairs == null) {

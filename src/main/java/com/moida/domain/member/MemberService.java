@@ -141,7 +141,7 @@ public class MemberService {
     }
 
     @Transactional
-    public void updateMemberRole(Long id, MemberRole role) {
+    public void updateMemberRole(Long id, MemberRole role, String reason) {
         Member member = findById(id);
         MemberRole previousRole = member.getRole();
         member.updateRole(role);
@@ -152,7 +152,7 @@ public class MemberService {
                 member.getEmail(),
                 adminActionLogService.fields("role", previousRole),
                 adminActionLogService.fields("role", member.getRole()),
-                "회원 권한 변경"
+                reason
         );
     }
 

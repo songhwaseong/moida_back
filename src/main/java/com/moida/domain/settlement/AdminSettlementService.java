@@ -53,7 +53,7 @@ public class AdminSettlementService {
 
     /** 상태 변경 — PAID(정산처리) / CANCELED(보류) 만 허용 */
     @Transactional
-    public AdminSettlementResponse updateStatus(Long settlementId, Settlement.SettlementStatus next) {
+    public AdminSettlementResponse updateStatus(Long settlementId, Settlement.SettlementStatus next, String reason) {
         Settlement s = settlementRepository.findById(settlementId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND));
         Settlement.SettlementStatus previousStatus = s.getStatus();
@@ -95,7 +95,7 @@ public class AdminSettlementService {
                         "settledAmount", s.getSettledAmount(),
                         "paidAt", s.getPaidAt()
                 ),
-                "정산 상태 변경"
+                reason
         );
         return AdminSettlementResponse.from(s);
     }

@@ -126,7 +126,7 @@ public class WalletService {
      * 가상계좌 송금 확인이 끝난 입금 요청을 완료 처리하고 회원 잔액에 반영합니다.
      */
     @Transactional
-    public WalletResponse confirmDeposit(Long transactionId) {
+    public WalletResponse confirmDeposit(Long transactionId, String reason) {
         WalletTransaction transaction = transactionRepository.findByIdForUpdate(transactionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_TRANSACTION_NOT_FOUND));
         validatePendingTransaction(transaction, WalletTransaction.TransactionType.DEPOSIT);
@@ -135,7 +135,7 @@ public class WalletService {
 
         member.chargeBalance(transaction.getAmount());
         transaction.completeDeposit();
-        recordWalletAdminAction("WALLET_DEPOSIT_CONFIRM", transaction, "입금 요청 승인");
+        recordWalletAdminAction("WALLET_DEPOSIT_CONFIRM", transaction, reason);
 
         return buildWalletResponse(member);
     }
@@ -144,7 +144,7 @@ public class WalletService {
      * 출금 처리가 끝난 출금 요청을 완료 처리하고 회원 잔액에서 차감합니다.
      */
     @Transactional
-    public WalletResponse confirmWithdrawal(Long transactionId) {
+    public WalletResponse confirmWithdrawal(Long transactionId, String reason) {
         WalletTransaction transaction = transactionRepository.findByIdForUpdate(transactionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_TRANSACTION_NOT_FOUND));
         validatePendingTransaction(transaction, WalletTransaction.TransactionType.WITHDRAW);
@@ -156,7 +156,7 @@ public class WalletService {
 
         member.deductBalance(transaction.getAmount());
         transaction.completeWithdrawal();
-        recordWalletAdminAction("WALLET_WITHDRAWAL_CONFIRM", transaction, "출금 요청 승인");
+        recordWalletAdminAction("WALLET_WITHDRAWAL_CONFIRM", transaction, reason);
 
         return buildWalletResponse(member);
     }
@@ -206,13 +206,13 @@ public class WalletService {
      * 아직 처리되지 않은 입금 요청을 취소합니다.
      */
     @Transactional
-    public WalletResponse cancelDeposit(Long transactionId) {
+    public WalletResponse cancelDeposit(Long transactionId, String reason) {
         WalletTransaction transaction = transactionRepository.findByIdForUpdate(transactionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_TRANSACTION_NOT_FOUND));
         validatePendingTransaction(transaction, WalletTransaction.TransactionType.DEPOSIT);
 
         transaction.cancelDeposit();
-        recordWalletAdminAction("WALLET_DEPOSIT_CANCEL", transaction, "입금 요청 취소");
+        recordWalletAdminAction("WALLET_DEPOSIT_CANCEL", transaction, reason);
 
         return buildWalletResponse(transaction.getMember());
     }
@@ -221,13 +221,13 @@ public class WalletService {
      * 아직 처리되지 않은 출금 요청을 취소합니다.
      */
     @Transactional
-    public WalletResponse cancelWithdrawal(Long transactionId) {
+    public WalletResponse cancelWithdrawal(Long transactionId, String reason) {
         WalletTransaction transaction = transactionRepository.findByIdForUpdate(transactionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_TRANSACTION_NOT_FOUND));
         validatePendingTransaction(transaction, WalletTransaction.TransactionType.WITHDRAW);
 
         transaction.cancelWithdrawal();
-        recordWalletAdminAction("WALLET_WITHDRAWAL_CANCEL", transaction, "출금 요청 취소");
+        recordWalletAdminAction("WALLET_WITHDRAWAL_CANCEL", transaction, reason);
 
         return buildWalletResponse(transaction.getMember());
     }

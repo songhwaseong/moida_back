@@ -51,18 +51,23 @@ public class AuctionBidService {
 
     @Transactional
     public BidResultResponse buyNowProduct(Long productId, Long memberId) {
-        Auction auction = auctionRepository.findByProductId(productId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
-        if (auction.getImmediatePrice() == null) {
-            throw new BusinessException(ErrorCode.INVALID_BID_AMOUNT, "즉시낙찰가가 설정되지 않은 경매입니다.");
-        }
-        return placeProductBid(productId, memberId, auction.getImmediatePrice(), Bid.BidType.IMMEDIATE);
+        return placeProductBid(productId, memberId, null, Bid.BidType.IMMEDIATE);
     }
 
     private BidResultResponse placeProductBid(Long productId, Long memberId, Long amount, Bid.BidType bidType) {
-        Auction auction = auctionRepository.findByProductId(productId)
+        Auction auction = auctionRepository.findByProductIdForUpdate(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
         Product product = auction.getProduct();
+
+        if (bidType == Bid.BidType.IMMEDIATE) {
+            if (auction.getImmediatePrice() == null) {
+                throw new BusinessException(ErrorCode.INVALID_BID_AMOUNT, "즉시낙찰가가 설정되지 않은 경매입니다.");
+            }
+            amount = auction.getImmediatePrice();
+        }
+        if (amount == null) {
+            throw new BusinessException(ErrorCode.INVALID_BID_AMOUNT);
+        }
 
         if (product.isOwnedBy(memberId)) {
             throw new BusinessException(ErrorCode.SELF_BID_NOT_ALLOWED);

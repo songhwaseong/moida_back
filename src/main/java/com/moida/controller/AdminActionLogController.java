@@ -20,6 +20,11 @@ public class AdminActionLogController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<AdminActionLogResponse>>> getRecent() {
+        adminActionLogService.recordView(
+                "ADMIN_ACTION_LOG_VIEW",
+                "ADMIN_ACTION_LOG",
+                adminActionLogService.fields("limit", 500)
+        );
         return ResponseEntity.ok(ApiResponse.success(adminActionLogService.getRecent()));
     }
 }

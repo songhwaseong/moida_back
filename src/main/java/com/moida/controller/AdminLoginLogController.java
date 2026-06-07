@@ -2,6 +2,7 @@ package com.moida.controller;
 
 import com.moida.common.response.AdminLoginLogResponse;
 import com.moida.common.response.ApiResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.audit.AdminLoginLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,9 +22,15 @@ import java.util.List;
 public class AdminLoginLogController {
 
     private final AdminLoginLogService adminLoginLogService;
+    private final AdminActionLogService adminActionLogService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<AdminLoginLogResponse>>> getRecent() {
+        adminActionLogService.recordView(
+                "ADMIN_LOGIN_LOG_VIEW",
+                "ADMIN_LOGIN_LOG",
+                adminActionLogService.fields("limit", 500)
+        );
         return ResponseEntity.ok(ApiResponse.success(adminLoginLogService.getRecent()));
     }
 }

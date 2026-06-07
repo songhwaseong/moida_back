@@ -6,6 +6,7 @@ import com.moida.common.response.ApiResponse;
 import com.moida.common.response.ProductChatMessageResponse;
 import com.moida.common.response.ProductChatMessagesResponse;
 import com.moida.common.response.ProductChatRoomResponse;
+import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.chat.ProductChatService;
 import com.moida.security.CustomUserDetails;
 import jakarta.validation.Valid;
@@ -23,6 +24,7 @@ public class ProductChatController {
 
     private final ProductChatService productChatService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final AdminActionLogService adminActionLogService;
 
     // 상품/경매 상세에서 사용할 최근 채팅 이력을 조회한다.
     @GetMapping("/api/products/{productId}/chat/messages")
@@ -54,6 +56,11 @@ public class ProductChatController {
     // 관리자 채팅방 목록과 모더레이션 기능이다.
     @GetMapping("/api/admin/chat/rooms")
     public ResponseEntity<ApiResponse<List<ProductChatRoomResponse>>> getAdminChatRooms() {
+        adminActionLogService.recordView(
+                "ADMIN_CHAT_ROOM_VIEW",
+                "PRODUCT_CHAT_ROOM",
+                adminActionLogService.fields("view", "rooms")
+        );
         return ResponseEntity.ok(ApiResponse.success(productChatService.getAdminRooms()));
     }
 
