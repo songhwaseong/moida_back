@@ -97,8 +97,9 @@ public class PasswordlessClient {
         return decryptOneTimeToken(encryptedToken);
     }
 
-    public String requestAuthentication(Long memberId, String clientIp, String sessionId, String random) {
+    public String requestAuthentication(Long memberId, String oneTimeToken, String clientIp, String sessionId, String random) {
         MultiValueMap<String, String> params = baseParams(memberId);
+        params.add("token", oneTimeToken);
         params.add("clientIp", clientIp);
         params.add("sessionId", sessionId);
         params.add("random", random);

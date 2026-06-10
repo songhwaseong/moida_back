@@ -71,7 +71,7 @@ public class PasswordlessService {
         String sessionId = System.currentTimeMillis() + "_sessionId";
         String random = UUID.randomUUID().toString();
         String oneTimeToken = passwordlessClient.issueOneTimeToken(member.getId());
-        String pushConnectorToken = passwordlessClient.requestAuthentication(member.getId(), clientIp, sessionId, random);
+        String pushConnectorToken = passwordlessClient.requestAuthentication(member.getId(), oneTimeToken, clientIp, sessionId, random);
         String requestToken = requestTokenService.create(member.getId(), sessionId, random, REQUEST_EXPIRES_IN_SECONDS);
 
         return new PasswordlessLoginStartResponse(
