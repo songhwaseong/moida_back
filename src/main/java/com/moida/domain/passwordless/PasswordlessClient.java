@@ -79,7 +79,7 @@ public class PasswordlessClient {
                 data.path("terms").asInt(0),
                 fieldText(data, "serverUrl", simpleAutopasswordUrl),
                 fieldText(data, "userId", String.valueOf(memberId)),
-                fieldText(data, "pushConnectorUrl", pushConnectorUrl),
+                pushConnectorUrl,
                 extractConnectorToken(response)
         );
     }
