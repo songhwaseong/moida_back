@@ -48,6 +48,14 @@ jwt:
   access-token-validity: 3600000
   refresh-token-validity: 1209600000
 
+passwordless:
+  rest-check-url: ${PASSWORDLESS_REST_CHECK_URL:}
+  simple-autopassword-url: ${PASSWORDLESS_SIMPLE_AUTOPASSWORD_URL:}
+  push-connector-url: ${PASSWORDLESS_PUSH_CONNECTOR_URL:}
+  server-id: ${PASSWORDLESS_SERVER_ID:}
+  server-key: ${PASSWORDLESS_SERVER_KEY:}
+  corp-id: ${PASSWORDLESS_CORP_ID:}
+
 logging:
   level:
     org.hibernate.SQL: info

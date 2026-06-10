@@ -56,7 +56,7 @@ public class AuctionScheduler {
         log.info("[AuctionScheduler] expireUnpaidAuctions targets={}", targets.size());
         for (Auction a : targets) {
             try {
-                completionService.expireUnpaidAuction(a);
+                completionService.expireUnpaidAuction(a.getId());
             } catch (Exception e) {
                 log.error("[AuctionScheduler] expireUnpaidAuctions failed auctionId={}", a.getId(), e);
             }

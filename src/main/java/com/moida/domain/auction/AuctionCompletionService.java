@@ -32,7 +32,7 @@ import java.util.List;
  *      - winner.balance < amount  → AWAITING_PAYMENT 전환 + paymentDeadline 설정 + AUCTION_WON_PAYMENT_REQUIRED 알림
  *   2) payForWinningAuction(auctionId, memberId)  (사용자가 충전 후 결제 트리거)
  *      - 잔액 검증 → 차감 + Settlement 생성 + SUCCESS + PAYMENT_COMPLETED 알림
- *   3) expireUnpaidAuction(auction)  (스케줄러가 호출)
+ *   3) expireUnpaidAuction(auctionId)  (스케줄러가 호출)
  *      - 유찰 처리 + 낙찰자 nonPaymentCount++ + (3회 누적 시 Sanction SUSPEND_7 자동 발급)
  *      - 낙찰자/판매자 양쪽에 AUCTION_FAILED_BY_NONPAYMENT 알림
  *
@@ -201,7 +201,9 @@ public class AuctionCompletionService {
      * 별도 트랜잭션으로 처리하여 다른 경매 만료 처리 실패가 전체를 막지 않게 한다.
      */
     @Transactional
-    public void expireUnpaidAuction(Auction auction) {
+    public void expireUnpaidAuction(Long auctionId) {
+        Auction auction = auctionRepository.findById(auctionId).orElse(null);
+        if (auction == null) return;
         if (auction.getStatus() != AuctionStatus.AWAITING_PAYMENT) return;
         if (auction.getPaymentDeadline() == null || LocalDateTime.now().isBefore(auction.getPaymentDeadline())) return;
 
