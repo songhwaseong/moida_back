@@ -97,7 +97,7 @@ public class PasswordlessClient {
         return decryptOneTimeToken(encryptedToken);
     }
 
-    public String requestAuthentication(Long memberId, String oneTimeToken, String clientIp, String sessionId, String random) {
+    public PasswordlessAuthenticationData requestAuthentication(Long memberId, String oneTimeToken, String clientIp, String sessionId, String random) {
         MultiValueMap<String, String> params = baseParams(memberId);
         params.add("token", oneTimeToken);
         params.add("clientIp", clientIp);
@@ -105,7 +105,12 @@ public class PasswordlessClient {
         params.add("random", random);
         params.add("password", "");
         PasswordlessRemoteResponse response = post(GET_SP, params);
-        return extractConnectorToken(response);
+        
+        JsonNode data = responseData(response);
+        String servicePassword = fieldText(data, "servicePassword");
+        String pushConnectorToken = extractConnectorToken(response);
+        
+        return new PasswordlessAuthenticationData(servicePassword, pushConnectorToken);
     }
 
     public String getResult(Long memberId, String sessionId, String random) {
