@@ -215,7 +215,9 @@ public class PasswordlessClient {
     }
 
     private String decryptOneTimeToken(String encrypted) {
-        byte[] key = serverKey.getBytes(StandardCharsets.UTF_8);
+        // serverKey 는 X1280 API 파라미터용 Base64 문자열이다.
+        // AES 키/IV 로는 이를 디코딩한 원본 바이트(16byte)를 써야 한다.
+        byte[] key = Base64.getDecoder().decode(serverKey);
         try {
             SecretKey secureKey = new SecretKeySpec(key, "AES");
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
