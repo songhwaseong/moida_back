@@ -120,7 +120,6 @@ jobs:
               -e SOLAPI_SENDER="${{ secrets.SOLAPI_SENDER }}" \
               -e PASSWORDLESS_REST_CHECK_URL="${{ secrets.PASSWORDLESS_REST_CHECK_URL }}" \
               -e PASSWORDLESS_SIMPLE_AUTOPASSWORD_URL="${{ secrets.PASSWORDLESS_SIMPLE_AUTOPASSWORD_URL }}" \
-              -e PASSWORDLESS_PUSH_CONNECTOR_URL="${{ secrets.PASSWORDLESS_PUSH_CONNECTOR_URL }}" \
               -e PASSWORDLESS_SERVER_ID="${{ secrets.PASSWORDLESS_SERVER_ID }}" \
               -e PASSWORDLESS_SERVER_KEY="${{ secrets.PASSWORDLESS_SERVER_KEY }}" \
               -e PASSWORDLESS_CORP_ID="${{ secrets.PASSWORDLESS_CORP_ID }}" \
@@ -197,7 +196,6 @@ jobs:
               -e SOLAPI_SENDER="${{ secrets.SOLAPI_SENDER }}" \
               -e PASSWORDLESS_REST_CHECK_URL="${{ secrets.PASSWORDLESS_REST_CHECK_URL }}" \
               -e PASSWORDLESS_SIMPLE_AUTOPASSWORD_URL="${{ secrets.PASSWORDLESS_SIMPLE_AUTOPASSWORD_URL }}" \
-              -e PASSWORDLESS_PUSH_CONNECTOR_URL="${{ secrets.PASSWORDLESS_PUSH_CONNECTOR_URL }}" \
               -e PASSWORDLESS_SERVER_ID="${{ secrets.PASSWORDLESS_SERVER_ID }}" \
               -e PASSWORDLESS_SERVER_KEY="${{ secrets.PASSWORDLESS_SERVER_KEY }}" \
               -e PASSWORDLESS_CORP_ID="${{ secrets.PASSWORDLESS_CORP_ID }}" \

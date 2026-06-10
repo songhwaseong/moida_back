@@ -17,3 +17,9 @@ cors:
 logging:
   level:
     com.moida: info
+
+# Passwordless push connector — 공개 URL(민감정보 아님)이라 prod 고정값으로 하드코딩.
+# 주의: cd.yml 에서 -e PASSWORDLESS_PUSH_CONNECTOR_URL 을 주입하면 env 가 이 값을 덮어쓰므로
+#       cd.yml 의 해당 -e 라인은 제거해야 한다.
+passwordless:
+  push-connector-url: wss://moida.site/pwless-ws/
