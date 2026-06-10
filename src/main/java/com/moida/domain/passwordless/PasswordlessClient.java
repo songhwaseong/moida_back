@@ -149,8 +149,11 @@ public class PasswordlessClient {
             String result = root.path("result").asText("");
             String code = root.path("code").asText("");
             boolean success = result.equalsIgnoreCase("OK")
+                    || result.equalsIgnoreCase("true")
+                    || root.path("result").asBoolean(false)
                     || root.path("success").asBoolean(false)
                     || code.equalsIgnoreCase("OK")
+                    || code.equals("000.0")
                     || (!StringUtils.hasText(result) && !StringUtils.hasText(code) && !root.path("data").isMissingNode());
             String message = root.path("message").asText(null);
 
