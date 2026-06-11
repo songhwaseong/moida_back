@@ -27,7 +27,7 @@ public enum ErrorCode {
     ADDRESS_NOT_FOUND(HttpStatus.NOT_FOUND, "M005", "주소를 찾을 수 없습니다."),
     ACCOUNT_DEACTIVATION_BLOCKED(HttpStatus.BAD_REQUEST, "M006", "탈퇴할 수 없는 계정 상태입니다."),
     MEMBER_ACCOUNT_INACTIVE(HttpStatus.FORBIDDEN, "M007", "이용할 수 없는 계정입니다."),
-    PASSWORDLESS_LOGIN_REQUIRED(HttpStatus.FORBIDDEN, "M008", "Passwordless가 등록된 계정입니다. Passwordless로 로그인해주세요."),
+    PASSWORDLESS_LOGIN_REQUIRED(HttpStatus.FORBIDDEN, "M008", "Passwordless가 등록된 계정입니다.\nPasswordless로 로그인해주세요."),
 
     // Product
     PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "상품을 찾을 수 없습니다."),

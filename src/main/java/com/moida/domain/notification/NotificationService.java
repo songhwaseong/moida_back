@@ -5,13 +5,13 @@ import com.moida.common.exception.ErrorCode;
 import com.moida.common.request.NotificationSettingRequest;
 import com.moida.common.response.NotificationResponse;
 import com.moida.common.response.NotificationSettingResponse;
+import com.moida.config.realtime.RealtimeMessagePublisher;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -29,14 +29,14 @@ public class NotificationService {
 
     /**
      * STOMP user 목적지 경로. 클라이언트는 /user/queue/notifications 를 구독한다.
-     * (SimpMessagingTemplate.convertAndSendToUser 가 /queue/notifications → /user/queue/notifications 로 라우팅)
+     * (convertAndSendToUser 가 /queue/notifications → /user/queue/notifications 로 라우팅)
      */
     public static final String USER_NOTIFICATION_DESTINATION = "/queue/notifications";
 
     private final MemberRepository memberRepository;
     private final NotificationRepository notificationRepository;
     private final NotificationSettingRepository settingRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RealtimeMessagePublisher realtimePublisher;
 
     @Transactional
     public NotificationSettingResponse getSettings(Long memberId) {
@@ -152,7 +152,8 @@ public class NotificationService {
                                           String title, NotificationResponse payload) {
         try {
             // STOMP user destination 으로 즉시 push. 수신 클라이언트는 NotificationResponse 형태로 처리.
-            messagingTemplate.convertAndSendToUser(
+            // 멀티 인스턴스에서는 RealtimeMessagePublisher 가 Redis 를 거쳐 사용자가 연결된 인스턴스로 전달한다.
+            realtimePublisher.sendToUser(
                     recipientEmail,
                     USER_NOTIFICATION_DESTINATION,
                     payload

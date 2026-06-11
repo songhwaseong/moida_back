@@ -4,6 +4,14 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
 
+  # WebSocket 멀티 인스턴스 릴레이용 Redis 연결. relay 비활성(local/test)에서는 실제로 연결하지 않는다.
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      timeout: 2s
+
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     properties:
@@ -80,6 +88,11 @@ tracking:
     base-url: https://info.sweettracker.co.kr/api/v1
 
 moida:
+  # 실시간(WebSocket) 멀티 인스턴스 릴레이. 기본 비활성 → 단일 인스턴스로 동작(로컬/테스트).
+  # 운영(application-prod)에서 true 로 켜면 Redis Pub/Sub 로 전 인스턴스에 전파된다.
+  realtime:
+    redis-relay:
+      enabled: ${REDIS_RELAY_ENABLED:false}
   images:
     bucket: ${MOIDA_S3_BUCKET:}
     region: ${AWS_REGION:ap-northeast-2}

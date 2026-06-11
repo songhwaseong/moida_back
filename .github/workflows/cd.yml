@@ -99,6 +99,9 @@ jobs:
               -p 9000:9000 \
               -e SPRING_PROFILES_ACTIVE=prod \
               -e INSTANCE_NAME=moida-backend-ec2-1 \
+              -e SPRING_DATA_REDIS_HOST="${{ secrets.REDIS_HOST }}" \
+              -e SPRING_DATA_REDIS_PORT="${{ secrets.REDIS_PORT }}" \
+              -e SPRING_DATA_REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}" \
               -e DB_URL="${{ secrets.DB_URL }}" \
               -e DB_USERNAME="${{ secrets.DB_USERNAME }}" \
               -e DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
@@ -175,6 +178,9 @@ jobs:
               -p 9000:9000 \
               -e SPRING_PROFILES_ACTIVE=prod \
               -e INSTANCE_NAME=moida-backend-ec2-2 \
+              -e SPRING_DATA_REDIS_HOST="${{ secrets.REDIS_HOST }}" \
+              -e SPRING_DATA_REDIS_PORT="${{ secrets.REDIS_PORT }}" \
+              -e SPRING_DATA_REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}" \
               -e DB_URL="${{ secrets.DB_URL }}" \
               -e DB_USERNAME="${{ secrets.DB_USERNAME }}" \
               -e DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \

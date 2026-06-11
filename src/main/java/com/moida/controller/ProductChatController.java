@@ -6,6 +6,7 @@ import com.moida.common.response.ApiResponse;
 import com.moida.common.response.ProductChatMessageResponse;
 import com.moida.common.response.ProductChatMessagesResponse;
 import com.moida.common.response.ProductChatRoomResponse;
+import com.moida.config.realtime.RealtimeMessagePublisher;
 import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.chat.ProductChatService;
 import com.moida.security.CustomUserDetails;
@@ -13,7 +14,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,7 +23,7 @@ import java.util.List;
 public class ProductChatController {
 
     private final ProductChatService productChatService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RealtimeMessagePublisher realtimePublisher;
     private final AdminActionLogService adminActionLogService;
 
     // 상품/경매 상세에서 사용할 최근 채팅 이력을 조회한다.
@@ -49,7 +49,7 @@ public class ProductChatController {
                 userDetails.getMemberId(),
                 request
         );
-        messagingTemplate.convertAndSend("/topic/products/" + productId + "/chat", message);
+        realtimePublisher.broadcast("/topic/products/" + productId + "/chat", message);
         return ResponseEntity.ok(ApiResponse.success(message, "Message has been created."));
     }
 

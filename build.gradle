@@ -32,6 +32,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
+    // 멀티 인스턴스 WebSocket 브로드캐스트 릴레이용 Redis Pub/Sub (운영 프로파일에서만 활성)
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
     // MySQL
     runtimeOnly 'com.mysql:mysql-connector-j'
