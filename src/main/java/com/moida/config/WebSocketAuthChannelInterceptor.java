@@ -30,11 +30,18 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
         StompCommand command = accessor.getCommand();
         // 명령이 없는 프레임(heartbeat 등)이나 이미 인증된 프레임은 그대로 둔다.
-        if (command == null || accessor.getUser() != null) {
+        if (command == null) {
             return message;
         }
 
         Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+
+        if (accessor.getUser() != null) {
+            if (StompCommand.CONNECT.equals(command) && sessionAttributes != null) {
+                sessionAttributes.put(STOMP_USER_ATTR, accessor.getUser());
+            }
+            return message;
+        }
 
         // CONNECT: Authorization 헤더의 JWT 로 인증하고, 그 Principal 을 세션에 저장한다.
         // WebSocket/STOMP 트래픽은 일반 HTTP 보안 필터를 거치지 않으므로 여기서 직접 인증한다.
