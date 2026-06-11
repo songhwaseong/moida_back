@@ -5,8 +5,13 @@ import com.moida.common.exception.ErrorCode;
 import com.moida.common.request.ProductImagePresignRequest;
 import com.moida.common.response.ProductImagePresignResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
@@ -26,9 +31,12 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProductImageStorageService {
 
     private static final int MAX_IMAGE_COUNT = 10;
+    private static final String TEMP_PRODUCTS_PREFIX = "temp/products/";
+    private static final String PERMANENT_PRODUCTS_PREFIX = "products/";
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "image/jpeg",
             "image/png",
@@ -39,6 +47,7 @@ public class ProductImageStorageService {
 
     private final ProductImageStorageProperties properties;
     private final S3Presigner s3Presigner;
+    private final S3Client s3Client;
 
     public ProductImagePresignResponse createPresignedUploads(
             ProductImagePresignRequest request,
@@ -78,6 +87,16 @@ public class ProductImageStorageService {
 
         normalized.forEach(image -> validateStorageReference(image, memberId));
         return normalized;
+    }
+
+    public List<String> promoteTempImages(List<String> images, Long memberId) {
+        if (images == null || images.isEmpty()) {
+            return List.of();
+        }
+        ensureConfigured();
+        return images.stream()
+                .map(image -> promoteTempImage(image, memberId))
+                .toList();
     }
 
     public String toPublicUrl(String storageReference) {
@@ -144,21 +163,68 @@ public class ProductImageStorageService {
         if (isLegacyExternalReference(image)) {
             return;
         }
-        String expectedPrefix = "products/" + memberId + "/";
-        if (!image.startsWith(expectedPrefix)) {
+        if (isOwnedProductKey(image, memberId)) {
+            return;
+        }
+        if (!isOwnedTempProductKey(image, memberId)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "상품 이미지 경로가 올바르지 않습니다.");
         }
     }
 
     private String buildObjectKey(Long memberId, String contentType) {
         LocalDate today = LocalDate.now();
-        return "products/%d/%s/%s/%s.%s".formatted(
+        return "temp/products/%d/%s/%s/%s.%s".formatted(
                 memberId,
                 YEAR.format(today),
                 MONTH.format(today),
                 UUID.randomUUID(),
                 extensionFor(contentType)
         );
+    }
+
+    private String promoteTempImage(String image, Long memberId) {
+        String storageReference = toStorageReference(image);
+        validateStorageReference(storageReference, memberId);
+
+        if (isLegacyExternalReference(storageReference) || isOwnedProductKey(storageReference, memberId)) {
+            return storageReference;
+        }
+
+        String permanentKey = storageReference.substring("temp/".length());
+        copyTempImage(storageReference, permanentKey);
+        deleteTempImage(storageReference);
+        return permanentKey;
+    }
+
+    private void copyTempImage(String tempKey, String permanentKey) {
+        try {
+            s3Client.copyObject(CopyObjectRequest.builder()
+                    .copySource(properties.getBucket() + "/" + tempKey)
+                    .destinationBucket(properties.getBucket())
+                    .destinationKey(permanentKey)
+                    .build());
+        } catch (S3Exception e) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "이미지 저장에 실패했습니다.");
+        }
+    }
+
+    private void deleteTempImage(String tempKey) {
+        try {
+            s3Client.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(properties.getBucket())
+                    .key(tempKey)
+                    .build());
+        } catch (S3Exception e) {
+            log.warn("Failed to delete temporary product image. key={}", tempKey, e);
+        }
+    }
+
+    private boolean isOwnedProductKey(String image, Long memberId) {
+        return image.startsWith(PERMANENT_PRODUCTS_PREFIX + memberId + "/");
+    }
+
+    private boolean isOwnedTempProductKey(String image, Long memberId) {
+        return image.startsWith(TEMP_PRODUCTS_PREFIX + memberId + "/");
     }
 
     private String toStorageReference(String image) {

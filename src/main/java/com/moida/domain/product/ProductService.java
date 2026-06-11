@@ -80,6 +80,7 @@ public class ProductService {
                 + String.format("%05d", productRepository.count() + 1);
 
         List<String> requestImages = resolveRequestImages(request.getImages(), request.getImage(), memberId);
+        requestImages = productImageStorageService.promoteTempImages(requestImages, memberId);
         int mainImageIndex = resolveMainImageIndex(request.getMainImageIndex(), requestImages.size());
         // mainImageUrl drives list thumbnails; product_images keeps the full detail gallery.
         String mainImageUrl = requestImages.isEmpty() ? null : requestImages.get(mainImageIndex);
@@ -165,6 +166,7 @@ public class ProductService {
 
         // 이미지가 전달된 경우에만 갤러리 전체를 교체한다. (빈 배열이면 기존 이미지 유지)
         List<String> requestImages = resolveRequestImages(request.getImages(), null, memberId);
+        requestImages = productImageStorageService.promoteTempImages(requestImages, memberId);
         if (!requestImages.isEmpty()) {
             int mainImageIndex = resolveMainImageIndex(request.getMainImageIndex(), requestImages.size());
             product.clearImages();
