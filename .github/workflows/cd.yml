@@ -1,4 +1,4 @@
-﻿name: CD
+name: CD
 
 on:
   push:
@@ -126,7 +126,13 @@ jobs:
               -e PASSWORDLESS_SERVER_ID="${{ secrets.PASSWORDLESS_SERVER_ID }}" \
               -e PASSWORDLESS_SERVER_KEY="${{ secrets.PASSWORDLESS_SERVER_KEY }}" \
               -e PASSWORDLESS_CORP_ID="${{ secrets.PASSWORDLESS_CORP_ID }}" \
+              -e MOIDA_S3_BUCKET="${{ secrets.MOIDA_S3_BUCKET }}" \
+              -e MOIDA_IMAGE_PUBLIC_BASE_URL="${{ secrets.MOIDA_IMAGE_PUBLIC_BASE_URL }}" \
+              -e AWS_REGION="${{ env.AWS_REGION }}" \
+              -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+              -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
               "$IMAGE"
+
 
             sleep 10
             test -n "$(docker ps -q --filter "name=^/${{ env.CONTAINER_NAME }}$" --filter "status=running")"
@@ -205,7 +211,13 @@ jobs:
               -e PASSWORDLESS_SERVER_ID="${{ secrets.PASSWORDLESS_SERVER_ID }}" \
               -e PASSWORDLESS_SERVER_KEY="${{ secrets.PASSWORDLESS_SERVER_KEY }}" \
               -e PASSWORDLESS_CORP_ID="${{ secrets.PASSWORDLESS_CORP_ID }}" \
+              -e MOIDA_S3_BUCKET="${{ secrets.MOIDA_S3_BUCKET }}" \
+              -e MOIDA_IMAGE_PUBLIC_BASE_URL="${{ secrets.MOIDA_IMAGE_PUBLIC_BASE_URL }}" \
+              -e AWS_REGION="${{ env.AWS_REGION }}" \
+              -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+              -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
               "$IMAGE"
+
 
             sleep 10
             test -n "$(docker ps -q --filter "name=^/${{ env.CONTAINER_NAME }}$" --filter "status=running")"
