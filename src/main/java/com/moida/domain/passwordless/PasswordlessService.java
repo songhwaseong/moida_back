@@ -6,10 +6,12 @@ import com.moida.common.response.LoginResponse;
 import com.moida.common.response.PasswordlessLoginCompleteResponse;
 import com.moida.common.response.PasswordlessLoginStartResponse;
 import com.moida.common.response.PasswordlessRegistrationStartResponse;
+import com.moida.domain.auth.EmailVerificationService;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
 import com.moida.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,11 +30,27 @@ public class PasswordlessService {
     private final PasswordlessClient passwordlessClient;
     private final PasswordlessRequestTokenService requestTokenService;
     private final JwtTokenProvider jwtTokenProvider;
+    private final PasswordEncoder passwordEncoder;
+    private final EmailVerificationService emailVerificationService;
 
     @Transactional(readOnly = true)
     public boolean isRegistered(Long memberId) {
         Member member = getActiveMember(memberId);
         return passwordlessClient.isRegistered(member.getId());
+    }
+
+    /**
+     * 등록 확정. 외부 Passwordless 서버에 실제로 등록됐는지 확인하고,
+     * 등록됐으면 로컬 플래그를 켜서 이후 일반 로그인을 차단한다.
+     */
+    @Transactional
+    public boolean confirmRegistration(Long memberId) {
+        Member member = getActiveMember(memberId);
+        boolean registered = passwordlessClient.isRegistered(member.getId());
+        if (registered) {
+            member.enablePasswordless();
+        }
+        return registered;
     }
 
     @Transactional(readOnly = true)
@@ -52,10 +70,42 @@ public class PasswordlessService {
         );
     }
 
-    @Transactional(readOnly = true)
+    /** 로그인 세션이 있는 회원이 직접 해지하는 경로. */
+    @Transactional
     public void withdraw(Long memberId) {
         Member member = getActiveMember(memberId);
         passwordlessClient.withdraw(member.getId());
+        member.disablePasswordless();
+    }
+
+    /**
+     * 평상시 해지 — 비밀번호 확인.
+     * 일반 로그인(/auth/login)이 차단된 상태에서도 해지가 가능하도록
+     * 로그인 세션 발급 없이 이메일+비밀번호만 직접 검증한다.
+     */
+    @Transactional
+    public void withdrawByPassword(String email, String password) {
+        Member member = getActiveMemberByEmail(email);
+        if (!passwordEncoder.matches(password, member.getPassword())) {
+            throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+        }
+        passwordlessClient.withdraw(member.getId());
+        member.disablePasswordless();
+    }
+
+    /**
+     * 분실 복구 해지 — 이메일 인증.
+     * 휴대폰/앱 분실로 Passwordless 인증도 비밀번호도 쓸 수 없을 때
+     * 이메일 인증 코드만으로 해지해 락아웃을 방지한다.
+     */
+    @Transactional
+    public void withdrawByEmail(String email) {
+        Member member = getActiveMemberByEmail(email);
+        if (!emailVerificationService.isVerified(email)) {
+            throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND, "이메일 인증을 먼저 완료해주세요.");
+        }
+        passwordlessClient.withdraw(member.getId());
+        member.disablePasswordless();
     }
 
     @Transactional(readOnly = true)
@@ -116,6 +166,13 @@ public class PasswordlessService {
 
     private Member getActiveMember(Long memberId) {
         Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        assertActive(member);
+        return member;
+    }
+
+    private Member getActiveMemberByEmail(String email) {
+        Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         assertActive(member);
         return member;

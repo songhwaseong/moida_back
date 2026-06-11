@@ -2,6 +2,7 @@ package com.moida.controller;
 
 import com.moida.common.request.PasswordlessEmailRequest;
 import com.moida.common.request.PasswordlessRequestTokenRequest;
+import com.moida.common.request.PasswordlessWithdrawRequest;
 import com.moida.common.response.ApiResponse;
 import com.moida.common.response.PasswordlessLoginCompleteResponse;
 import com.moida.common.response.PasswordlessLoginStartResponse;
@@ -72,7 +73,7 @@ public class PasswordlessController {
     public ResponseEntity<ApiResponse<PasswordlessStatusResponse>> confirmRegistration(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        boolean registered = passwordlessService.isRegistered(userDetails.getMemberId());
+        boolean registered = passwordlessService.confirmRegistration(userDetails.getMemberId());
         return ResponseEntity.ok(ApiResponse.success(new PasswordlessStatusResponse(registered)));
     }
 
@@ -81,6 +82,32 @@ public class PasswordlessController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         passwordlessService.withdraw(userDetails.getMemberId());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /**
+     * 평상시 해지 — 이메일+비밀번호 확인.
+     * Passwordless 등록 후에는 /auth/login 이 차단되므로, 로그인 세션 없이 해지할 수 있도록
+     * 공개 엔드포인트(/api/auth/**)로 두고 비밀번호를 내부에서 직접 검증한다.
+     */
+    @PostMapping("/auth/passwordless/withdraw")
+    public ResponseEntity<ApiResponse<Void>> withdrawByPassword(
+            @Valid @RequestBody PasswordlessWithdrawRequest request
+    ) {
+        passwordlessService.withdrawByPassword(request.email(), request.password());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /**
+     * 분실 복구 해지 — 이메일 인증 코드 확인.
+     * 휴대폰/앱 분실 시 비밀번호도 Passwordless 인증도 못 쓰는 락아웃을 방지한다.
+     * 사전에 /api/auth/email/send-code, verify-code 로 이메일 인증을 마쳐야 한다.
+     */
+    @PostMapping("/auth/passwordless/withdraw-by-email")
+    public ResponseEntity<ApiResponse<Void>> withdrawByEmail(
+            @Valid @RequestBody PasswordlessEmailRequest request
+    ) {
+        passwordlessService.withdrawByEmail(request.email());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

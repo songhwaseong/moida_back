@@ -110,6 +110,9 @@ public class Member extends BaseTimeEntity {
     @Column(length = 10)
     private String avatar;
 
+    @Column(name = "passwordless_enabled", nullable = false)
+    private boolean passwordlessEnabled; // true 면 일반 로그인(비번/소셜) 차단, Passwordless 로그인만 허용
+
     @Builder
     private Member(String memberNo, String email, String password, String name, String nickname, String phone,
                    String profileImageUrl, String location, MemberRole role, String socialLogin) {// 소셜 로그인 구분값 추가
@@ -227,5 +230,15 @@ public class Member extends BaseTimeEntity {
     // 관리자가 특정 회원의 역할을 변경할 때 사용
     public void updateRole(MemberRole role) {
         this.role = role;
+    }
+
+    /** Passwordless 등록 확정 시 호출 — 이후 일반 로그인(비번/소셜)이 차단된다. */
+    public void enablePasswordless() {
+        this.passwordlessEnabled = true;
+    }
+
+    /** Passwordless 해지 시 호출 — 일반 로그인이 다시 허용된다. */
+    public void disablePasswordless() {
+        this.passwordlessEnabled = false;
     }
 }

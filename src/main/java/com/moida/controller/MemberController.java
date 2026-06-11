@@ -74,9 +74,11 @@ public class MemberController {
             throw new BusinessException(ErrorCode.MEMBER_ACCOUNT_INACTIVE);
         }
 
+        // Passwordless 차단 검사를 성공 로그 기록보다 먼저 수행한다.
+        LoginResponse loginResponse = createLoginResponse(member, false);
         adminLoginLogService.recordSuccess(member, ip, userAgent);
 
-        return ResponseEntity.ok(ApiResponse.success(createLoginResponse(member, false)));
+        return ResponseEntity.ok(ApiResponse.success(loginResponse));
     }
 
     @PostMapping("/refresh")
@@ -198,6 +200,10 @@ public class MemberController {
     private LoginResponse createLoginResponse(Member member, boolean newUser) {
         if (!member.isActive()) {
             throw new BusinessException(ErrorCode.MEMBER_ACCOUNT_INACTIVE);
+        }
+        // Passwordless 등록 회원은 일반 로그인(비밀번호/소셜)을 차단하고 Passwordless 로그인만 허용한다.
+        if (member.isPasswordlessEnabled()) {
+            throw new BusinessException(ErrorCode.PASSWORDLESS_LOGIN_REQUIRED);
         }
         String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getId(), member.getEmail(), member.getRole());
