@@ -18,7 +18,15 @@ public class ProductImageStorageProperties {
     }
 
     public void setBucket(String bucket) {
-        this.bucket = bucket == null ? "" : bucket.trim();
+        if (bucket == null) {
+            this.bucket = "";
+            return;
+        }
+        String cleaned = bucket.trim();
+        if (cleaned.startsWith("arn:aws:s3:::")) {
+            cleaned = cleaned.substring("arn:aws:s3:::".length());
+        }
+        this.bucket = cleaned;
     }
 
     public String getRegion() {
