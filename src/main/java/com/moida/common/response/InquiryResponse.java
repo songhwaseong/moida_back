@@ -5,6 +5,7 @@ import com.moida.domain.product.ProductStatus;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.function.UnaryOperator;
 
 public record InquiryResponse(
         Long id,
@@ -23,11 +24,15 @@ public record InquiryResponse(
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm");
 
     public static InquiryResponse from(Inquiry inquiry) {
+        return from(inquiry, UnaryOperator.identity());
+    }
+
+    public static InquiryResponse from(Inquiry inquiry, UnaryOperator<String> imageUrlResolver) {
         return new InquiryResponse(
                 inquiry.getId(),
                 inquiry.getProduct().getId(),
                 inquiry.getProduct().getName(),
-                inquiry.getProduct().getMainImageUrl(),
+                imageUrlResolver.apply(inquiry.getProduct().getMainImageUrl()),
                 inquiry.getSeller().getName(),
                 inquiry.getUser().getName(),
                 kind(inquiry.getProduct().getStatus()),

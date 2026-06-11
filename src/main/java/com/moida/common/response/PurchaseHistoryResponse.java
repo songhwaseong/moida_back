@@ -6,6 +6,7 @@ import com.moida.domain.product.Product;
 import com.moida.domain.settlement.Settlement;
 
 import java.time.format.DateTimeFormatter;
+import java.util.function.UnaryOperator;
 
 public record PurchaseHistoryResponse(
         Long productId,
@@ -30,6 +31,14 @@ public record PurchaseHistoryResponse(
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm");
 
     public static PurchaseHistoryResponse from(Auction auction, Settlement settlement) {
+        return from(auction, settlement, UnaryOperator.identity());
+    }
+
+    public static PurchaseHistoryResponse from(
+            Auction auction,
+            Settlement settlement,
+            UnaryOperator<String> imageUrlResolver
+    ) {
         Product product = auction.getProduct();
         DeliveryStatus deliveryStatus = auction.getDeliveryStatus();
         boolean canConfirmReceipt = deliveryStatus == DeliveryStatus.DELIVERED
@@ -42,7 +51,7 @@ public record PurchaseHistoryResponse(
                 product.getProductNo(),
                 auction.getAuctionNo(),
                 product.getName(),
-                product.getMainImageUrl(),
+                imageUrlResolver.apply(product.getMainImageUrl()),
                 product.getCategory().getName(),
                 auction.getWinningPrice(),
                 auction.getStatus().name(),

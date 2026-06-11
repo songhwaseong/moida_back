@@ -9,6 +9,7 @@ import com.moida.domain.member.MemberRepository;
 import com.moida.domain.notification.Notification;
 import com.moida.domain.notification.NotificationService;
 import com.moida.domain.product.Product;
+import com.moida.domain.product.ProductImageStorageService;
 import com.moida.domain.product.ProductRepository;
 import com.moida.domain.product.ProductStatus;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class InquiryService {
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
     private final NotificationService notificationService;
+    private final ProductImageStorageService productImageStorageService;
 
     @Transactional(readOnly = true)
     public List<InquiryResponse> getProductInquiries(Long productId, Long memberId) {
@@ -86,6 +88,6 @@ public class InquiryService {
                 "/products/" + product.getId()
         );
 
-        return InquiryResponse.from(saved);
+        return InquiryResponse.from(saved, productImageStorageService::toPublicUrl);
     }
 }

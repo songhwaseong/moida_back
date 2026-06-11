@@ -8,6 +8,7 @@ import com.moida.domain.product.ProductImage;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 public record ProductDetailResponse(
         Long id,
@@ -59,15 +60,27 @@ public record ProductDetailResponse(
     // 일반 상품이면 경매 관련 필드는 null/빈 목록으로 내려간다.
     // liked: 요청 사용자가 이 상품에 좋아요를 눌렀는지 여부. 비로그인이면 false.
     public static ProductDetailResponse from(Product product, Auction auction, List<Bid> bids, boolean liked, Long memberId) {
-        ProductSummaryResponse summary = ProductSummaryResponse.from(product, auction);
+        return from(product, auction, bids, liked, memberId, UnaryOperator.identity());
+    }
+
+    public static ProductDetailResponse from(
+            Product product,
+            Auction auction,
+            List<Bid> bids,
+            boolean liked,
+            Long memberId,
+            UnaryOperator<String> imageUrlResolver
+    ) {
+        ProductSummaryResponse summary = ProductSummaryResponse.from(product, auction, imageUrlResolver);
         // 상세 화면의 썸네일 순서를 DB display_order 기준으로 유지한다.
         List<String> images = product.getImages().stream()
                 .sorted(Comparator.comparing(ProductImage::getDisplayOrder))
                 .map(ProductImage::getUrl)
+                .map(imageUrlResolver)
                 .toList();
 
         if (images.isEmpty() && product.getMainImageUrl() != null) {
-            images = List.of(product.getMainImageUrl());
+            images = List.of(imageUrlResolver.apply(product.getMainImageUrl()));
         }
 
         boolean isWinner = memberId != null && auction != null && auction.getWinner() != null

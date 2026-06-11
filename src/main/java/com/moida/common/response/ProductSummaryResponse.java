@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 public record ProductSummaryResponse(
         Long id,
@@ -49,6 +50,14 @@ public record ProductSummaryResponse(
     // auction 이 null 인 경우(예: 경매 예정 단계) 경매 부가 정보는 안전한 기본값으로 채워
     // 카드 렌더링이 깨지지 않도록 한다.
     public static ProductSummaryResponse from(Product product, Auction auction) {
+        return from(product, auction, UnaryOperator.identity());
+    }
+
+    public static ProductSummaryResponse from(
+            Product product,
+            Auction auction,
+            UnaryOperator<String> imageUrlResolver
+    ) {
         // 화면 LIVE 뱃지 노출 조건: 경매 row 가 있고, 상태가 LIVE 이며, endAt 이 아직 지나지 않았다.
         boolean liveAuction = auction != null
                 && auction.getStatus() == AuctionStatus.LIVE
@@ -58,7 +67,7 @@ public record ProductSummaryResponse(
                 product.getId(),
                 product.getProductNo(),
                 product.getName(),
-                product.getMainImageUrl(),
+                imageUrlResolver.apply(product.getMainImageUrl()),
                 product.getLocation(),
                 timeAgo(product.getCreatedAt()),
                 auction != null ? auction.getStartPrice() : product.getPrice(),

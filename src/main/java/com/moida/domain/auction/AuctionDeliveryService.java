@@ -7,6 +7,7 @@ import com.moida.domain.member.Member;
 import com.moida.domain.notification.Notification;
 import com.moida.domain.notification.NotificationService;
 import com.moida.domain.product.Product;
+import com.moida.domain.product.ProductImageStorageService;
 import com.moida.domain.settlement.Settlement;
 import com.moida.domain.settlement.SettlementRepository;
 import com.moida.domain.wallet.WalletService;
@@ -28,6 +29,7 @@ public class AuctionDeliveryService {
     private final SettlementRepository settlementRepository;
     private final NotificationService notificationService;
     private final WalletService walletService;
+    private final ProductImageStorageService productImageStorageService;
 
     @Transactional(readOnly = true)
     public List<PurchaseHistoryResponse> getMyPurchases(Long memberId) {
@@ -41,7 +43,11 @@ public class AuctionDeliveryService {
                 .collect(Collectors.toMap(s -> s.getAuction().getId(), s -> s));
 
         return auctions.stream()
-                .map(auction -> PurchaseHistoryResponse.from(auction, settlementByAuctionId.get(auction.getId())))
+                .map(auction -> PurchaseHistoryResponse.from(
+                        auction,
+                        settlementByAuctionId.get(auction.getId()),
+                        productImageStorageService::toPublicUrl
+                ))
                 .toList();
     }
 

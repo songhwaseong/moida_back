@@ -11,6 +11,7 @@ import com.moida.domain.member.MemberStatus;
 import com.moida.domain.notification.Notification;
 import com.moida.domain.notification.NotificationService;
 import com.moida.domain.product.Product;
+import com.moida.domain.product.ProductImageStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class AuctionBidService {
     private final MemberRepository memberRepository;
     private final AuctionCompletionService completionService;
     private final NotificationService notificationService;
+    private final ProductImageStorageService productImageStorageService;
 
     @Transactional(readOnly = true)
     public List<MyBidResponse> getMyBids(Long memberId) {
@@ -40,7 +42,7 @@ public class AuctionBidService {
         );
 
         return latestBidByAuction.values().stream()
-                .map(MyBidResponse::from)
+                .map(bid -> MyBidResponse.from(bid, productImageStorageService::toPublicUrl))
                 .toList();
     }
 

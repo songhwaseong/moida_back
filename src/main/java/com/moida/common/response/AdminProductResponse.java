@@ -6,6 +6,7 @@ import com.moida.domain.product.ProductStatus;
 import com.moida.domain.product.ProductType;
 
 import java.time.format.DateTimeFormatter;
+import java.util.function.UnaryOperator;
 
 /**
  * 관리자 상품 관리 화면용 상품 응답 DTO.
@@ -49,6 +50,10 @@ public record AdminProductResponse(
     }
 
     public static AdminProductResponse from(Product product) {
+        return from(product, UnaryOperator.identity());
+    }
+
+    public static AdminProductResponse from(Product product, UnaryOperator<String> imageUrlResolver) {
         Member seller = product.getSeller();
         String sellerName = seller == null ? "-"
                 : (seller.getNickname() != null && !seller.getNickname().isBlank()
@@ -59,7 +64,7 @@ public record AdminProductResponse(
         return new AdminProductResponse(
                 product.getId(),
                 product.getProductNo(),
-                product.getMainImageUrl(),
+                imageUrlResolver.apply(product.getMainImageUrl()),
                 product.getName(),
                 type,
                 sellerName,

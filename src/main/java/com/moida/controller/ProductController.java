@@ -1,14 +1,17 @@
 package com.moida.controller;
 
 import com.moida.common.request.ProductRequest;
+import com.moida.common.request.ProductImagePresignRequest;
 import com.moida.common.request.ProductUpdateRequest;
 import com.moida.common.response.ApiResponse;
 import com.moida.common.response.MyBidResponse;
+import com.moida.common.response.ProductImagePresignResponse;
 import com.moida.common.response.ProductDetailResponse;
 import com.moida.common.response.ProductSummaryResponse;
 import com.moida.common.response.PurchaseHistoryResponse;
 import com.moida.domain.auction.AuctionDeliveryService;
 import com.moida.domain.auction.AuctionBidService;
+import com.moida.domain.product.ProductImageStorageService;
 import com.moida.domain.product.ProductService;
 import com.moida.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,7 @@ import java.util.Map;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductImageStorageService productImageStorageService;
     private final AuctionBidService auctionBidService;
     private final AuctionDeliveryService auctionDeliveryService;
 
@@ -111,6 +115,18 @@ public class ProductController {
         Long productId = productService.create(request, userDetails.getMemberId());
         log.info("[ProductController] POST /api/products created productId={}", productId);
         return ResponseEntity.ok(ApiResponse.success(productId, "상품이 등록되었습니다."));
+    }
+
+    @PostMapping("/images/presign")
+    public ResponseEntity<ApiResponse<ProductImagePresignResponse>> createImageUploadUrls(
+            @RequestBody ProductImagePresignRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        ProductImagePresignResponse response = productImageStorageService.createPresignedUploads(
+                request,
+                userDetails.getMemberId()
+        );
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     /**

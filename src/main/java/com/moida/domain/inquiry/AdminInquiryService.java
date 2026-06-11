@@ -6,6 +6,7 @@ import com.moida.common.response.InquiryResponse;
 import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.notification.Notification;
 import com.moida.domain.notification.NotificationService;
+import com.moida.domain.product.ProductImageStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,12 +24,13 @@ public class AdminInquiryService {
     private final InquiryRepository inquiryRepository;
     private final NotificationService notificationService;
     private final AdminActionLogService adminActionLogService;
+    private final ProductImageStorageService productImageStorageService;
 
     /** 전체 문의 목록 (최신순) */
     @Transactional(readOnly = true)
     public List<InquiryResponse> getAll() {
         return inquiryRepository.findAllForAdmin().stream()
-                .map(InquiryResponse::from)
+                .map(inquiry -> InquiryResponse.from(inquiry, productImageStorageService::toPublicUrl))
                 .toList();
     }
 
@@ -58,7 +60,7 @@ public class AdminInquiryService {
                 String.format("'%s' 상품 문의에 답변이 등록되었습니다.", inquiry.getProduct().getName()),
                 "/products/" + inquiry.getProduct().getId()
         );
-        return InquiryResponse.from(inquiry);
+        return InquiryResponse.from(inquiry, productImageStorageService::toPublicUrl);
     }
 
     /** 답변 삭제 (문의 자체는 남김) */

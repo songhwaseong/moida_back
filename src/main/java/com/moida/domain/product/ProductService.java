@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -56,6 +55,7 @@ public class ProductService {
     private final AuctionRepository auctionRepository;
     private final BidRepository bidRepository;
     private final ProductLikeRepository productLikeRepository;
+    private final ProductImageStorageService productImageStorageService;
 
     @Transactional
     public Long create(ProductRequest request, Long memberId) {
@@ -79,7 +79,7 @@ public class ProductService {
                 .format(DateTimeFormatter.ofPattern("yyyyMMdd"))
                 + String.format("%05d", productRepository.count() + 1);
 
-        List<String> requestImages = resolveRequestImages(request.getImages(), request.getImage());
+        List<String> requestImages = resolveRequestImages(request.getImages(), request.getImage(), memberId);
         int mainImageIndex = resolveMainImageIndex(request.getMainImageIndex(), requestImages.size());
         // mainImageUrl drives list thumbnails; product_images keeps the full detail gallery.
         String mainImageUrl = requestImages.isEmpty() ? null : requestImages.get(mainImageIndex);
@@ -164,7 +164,7 @@ public class ProductService {
         product.changeImmediatePrice(request.getImmediatePrice());
 
         // 이미지가 전달된 경우에만 갤러리 전체를 교체한다. (빈 배열이면 기존 이미지 유지)
-        List<String> requestImages = resolveRequestImages(request.getImages(), null);
+        List<String> requestImages = resolveRequestImages(request.getImages(), null, memberId);
         if (!requestImages.isEmpty()) {
             int mainImageIndex = resolveMainImageIndex(request.getMainImageIndex(), requestImages.size());
             product.clearImages();
@@ -309,7 +309,11 @@ public class ProductService {
                     Auction auction = auctionsByProductId.get(product.getId());
                     return auction != null && auction.getStatus() == AuctionStatus.LIVE;
                 })
-                .map(product -> ProductSummaryResponse.from(product, auctionsByProductId.get(product.getId())))
+                .map(product -> ProductSummaryResponse.from(
+                        product,
+                        auctionsByProductId.get(product.getId()),
+                        productImageStorageService::toPublicUrl
+                ))
                 .toList();
 
         // 가격 정렬은 currentPrice 가 채워진 뒤(=DTO 변환 이후) 적용해야 정확하다.
@@ -323,7 +327,11 @@ public class ProductService {
 
         return products.stream()
                 .filter(product -> product.getStatus() != ProductStatus.DELETED)
-                .map(product -> ProductSummaryResponse.from(product, auctionsByProductId.get(product.getId())))
+                .map(product -> ProductSummaryResponse.from(
+                        product,
+                        auctionsByProductId.get(product.getId()),
+                        productImageStorageService::toPublicUrl
+                ))
                 .toList();
     }
 
@@ -343,7 +351,11 @@ public class ProductService {
                 .filter(product -> product.getStatus() != ProductStatus.RETURN_REQUESTED)
                 .filter(product -> product.getStatus() != ProductStatus.RETURN_SHIPPING)
                 .filter(product -> product.getStatus() != ProductStatus.RETURN_COMPLETED)
-                .map(product -> ProductSummaryResponse.from(product, auctionsByProductId.get(product.getId())))
+                .map(product -> ProductSummaryResponse.from(
+                        product,
+                        auctionsByProductId.get(product.getId()),
+                        productImageStorageService::toPublicUrl
+                ))
                 .toList();
     }
 
@@ -387,7 +399,7 @@ public class ProductService {
 
         boolean liked = memberId != null
                 && productLikeRepository.existsByProductIdAndMemberId(product.getId(), memberId);
-        return ProductDetailResponse.from(product, auction, bids, liked, memberId);
+        return ProductDetailResponse.from(product, auction, bids, liked, memberId, productImageStorageService::toPublicUrl);
     }
 
     // 인기 정렬은 viewCount 우선 + 같은 값일 때 id 역순(최근 등록 우선)으로 결정적 정렬을 보장.
@@ -461,19 +473,8 @@ public class ProductService {
         return normalized;
     }
 
-    private List<String> resolveRequestImages(List<String> images, String legacySingleImage) {
-        List<String> source = images == null ? Collections.emptyList() : images;
-        // Support both the new images array and the legacy single image field.
-        List<String> normalized = source.stream()
-                .filter(image -> image != null && !image.isBlank())
-                .limit(10)
-                .collect(Collectors.toCollection(ArrayList::new));
-
-        if (normalized.isEmpty() && legacySingleImage != null && !legacySingleImage.isBlank()) {
-            normalized.add(legacySingleImage);
-        }
-
-        return normalized;
+    private List<String> resolveRequestImages(List<String> images, String legacySingleImage, Long memberId) {
+        return productImageStorageService.normalizeProductImageReferences(images, legacySingleImage, memberId);
     }
 
     private int resolveMainImageIndex(Integer requestedIndex, int imageCount) {

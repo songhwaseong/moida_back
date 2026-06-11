@@ -79,6 +79,14 @@ tracking:
     api-key: ${SWEETTRACKER_API_KEY:}
     base-url: https://info.sweettracker.co.kr/api/v1
 
+moida:
+  images:
+    bucket: ${MOIDA_S3_BUCKET:}
+    region: ${AWS_REGION:ap-northeast-2}
+    public-base-url: ${MOIDA_IMAGE_PUBLIC_BASE_URL:}
+    presign-ttl-seconds: ${MOIDA_S3_PRESIGN_TTL_SECONDS:300}
+    max-file-size-bytes: ${MOIDA_IMAGE_MAX_FILE_SIZE_BYTES:10485760}
+
 
 # 휴대폰 인증(SMS) — 솔라피. 키/발신번호는 환경변수로 주입한다.
 # 값이 비어 있으면 SmsService 가 개발 모드로 동작(실제 발송 없이 인증번호를 로그로 출력)한다.

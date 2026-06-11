@@ -27,6 +27,7 @@ public class ProductLikeService {
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
     private final AuctionRepository auctionRepository;
+    private final ProductImageStorageService productImageStorageService;
 
     // 토글 결과를 프론트가 그대로 받아 하트 상태와 카운트를 갱신한다.
     public record ToggleResult(boolean liked, long likeCount) {}
@@ -78,7 +79,11 @@ public class ProductLikeService {
                 .collect(Collectors.toMap(a -> a.getProduct().getId(), a -> a));
 
         return products.stream()
-                .map(product -> ProductSummaryResponse.from(product, auctionsByProductId.get(product.getId())))
+                .map(product -> ProductSummaryResponse.from(
+                        product,
+                        auctionsByProductId.get(product.getId()),
+                        productImageStorageService::toPublicUrl
+                ))
                 .toList();
     }
 }

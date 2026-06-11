@@ -8,6 +8,7 @@ import com.moida.domain.product.ProductType;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 /**
  * 관리자 상품 상세 모달용 응답 DTO.
@@ -34,6 +35,10 @@ public record AdminProductDetailResponse(
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
     public static AdminProductDetailResponse from(Product product) {
+        return from(product, UnaryOperator.identity());
+    }
+
+    public static AdminProductDetailResponse from(Product product, UnaryOperator<String> imageUrlResolver) {
         Member seller = product.getSeller();
         String sellerName = seller == null ? "-"
                 : (seller.getNickname() != null && !seller.getNickname().isBlank()
@@ -46,12 +51,13 @@ public record AdminProductDetailResponse(
                 .sorted(Comparator.comparing(img ->
                         img.getDisplayOrder() == null ? Integer.MAX_VALUE : img.getDisplayOrder()))
                 .map(ProductImage::getUrl)
+                .map(imageUrlResolver)
                 .toList();
 
         return new AdminProductDetailResponse(
                 product.getId(),
                 product.getProductNo(),
-                product.getMainImageUrl(),
+                imageUrlResolver.apply(product.getMainImageUrl()),
                 images,
                 product.getName(),
                 type,

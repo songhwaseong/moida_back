@@ -7,6 +7,7 @@ import com.moida.common.response.AdminDeactivatedMemberResponse;
 import com.moida.common.response.AdminMemberResponse;
 import com.moida.common.response.ApiResponse;
 import com.moida.common.response.ProductSummaryResponse;
+import com.moida.domain.product.ProductImageStorageService;
 import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRole;
@@ -32,6 +33,7 @@ public class AdminController {
 
     private final MemberService memberService;
     private final ProductService productService;
+    private final ProductImageStorageService productImageStorageService;
     private final AdminActionLogService adminActionLogService;
 
     @PatchMapping("/members/{id}/role")
@@ -105,7 +107,7 @@ public class AdminController {
                 adminActionLogService.fields("view", "pendingProducts")
         );
         List<ProductSummaryResponse> products = productService.findPendingProducts().stream()
-                .map(p -> ProductSummaryResponse.from(p, null))
+                .map(p -> ProductSummaryResponse.from(p, null, productImageStorageService::toPublicUrl))
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(products));
     }

@@ -38,6 +38,7 @@ public class AdminProductService {
     private final NotificationService notificationService;
     private final AuctionPolicyService auctionPolicyService;
     private final AdminActionLogService adminActionLogService;
+    private final ProductImageStorageService productImageStorageService;
     /** 최소 호가 단위 기본값. 등록 시 입력값을 저장하지 않으므로 보수적으로 1,000원으로 둔다. */
     private static final long DEFAULT_MIN_BID_UNIT = 1_000L;
     /** 시연용: 경매예정(SCHEDULED) 진입 후 자동으로 LIVE 로 전환되기까지의 대기 시간(초). */
@@ -48,7 +49,7 @@ public class AdminProductService {
     public List<AdminProductResponse> getProducts() {
         return productRepository.findAllForAdmin().stream()
                 .filter(p -> p.getStatus() != ProductStatus.DELETED)
-                .map(AdminProductResponse::from)
+                .map(product -> AdminProductResponse.from(product, productImageStorageService::toPublicUrl))
                 .toList();
     }
 
@@ -73,7 +74,7 @@ public class AdminProductService {
     public AdminProductDetailResponse getProduct(Long productId) {
         Product product = productRepository.findByIdForAdmin(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
-        return AdminProductDetailResponse.from(product);
+        return AdminProductDetailResponse.from(product, productImageStorageService::toPublicUrl);
     }
 
     /** 상품 정보 수정 (상품명/설명/카테고리/제품상태/가격) */

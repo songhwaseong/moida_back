@@ -7,6 +7,7 @@ import com.moida.domain.product.ProductCondition;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.function.UnaryOperator;
 
 public record MyBidResponse(
         Long id,
@@ -26,6 +27,10 @@ public record MyBidResponse(
         String bidTime
 ) {
     public static MyBidResponse from(Bid bid) {
+        return from(bid, UnaryOperator.identity());
+    }
+
+    public static MyBidResponse from(Bid bid, UnaryOperator<String> imageUrlResolver) {
         Auction auction = bid.getAuction();
         boolean live = auction.getStatus() == AuctionStatus.LIVE
                 && LocalDateTime.now().isBefore(auction.getEndAt());
@@ -40,7 +45,7 @@ public record MyBidResponse(
                 auction.getProduct().getProductNo(),
                 auction.getAuctionNo(),
                 auction.getProduct().getName(),
-                auction.getProduct().getMainImageUrl(),
+                imageUrlResolver.apply(auction.getProduct().getMainImageUrl()),
                 auction.getProduct().getCategory().getName(),
                 conditionLabel(auction.getProduct().getCondition()),
                 bid.getAmount(),
