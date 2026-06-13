@@ -2,6 +2,7 @@ package com.moida.domain.product;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -11,8 +12,8 @@ import java.util.List;
 /**
  * 상품 상태 자동 전이 스케줄러.
  *
- * activateScheduledProducts — 경매예정(SCHEDULED) 상품이 예약 시각(auctionScheduledAt, 승인 후 24h)을
- *                             넘기면 자동으로 LIVE(경매중) 로 전환한다.
+ * activateScheduledProducts — 기본 비활성화된 자동 시작 스케줄러.
+ *                             운영 정책상 경매 시작은 관리자 화면에서 수동 처리한다.
  *
  * 관리자가 미리 수동으로 LIVE 로 올린 상품은 SCHEDULED 가 아니므로 조회되지 않아 중복 전환되지 않는다.
  * 한 건 실패가 다른 건 처리를 막지 않도록 AdminProductService 의 @Transactional 메서드에 건별로 위임한다.
@@ -20,10 +21,11 @@ import java.util.List;
  */
 @Slf4j
 @Component
+@ConditionalOnProperty(prefix = "moida.auctions.auto-start", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class ProductScheduler {
 
-    /** 스케줄 주기: 1분. 자동 전환이 분 단위 정확도면 충분. */
+    /** 스케줄 주기: 10초. 테스트 환경에서 명시적으로 켠 경우에만 사용한다. */
     private static final long FIXED_DELAY_MS = 10_000L;
 
     private final ProductRepository productRepository;

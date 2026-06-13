@@ -88,7 +88,7 @@ public class AuctionCompletionService {
                     "상품이 낙찰됐어요",
                     String.format("[%s] 상품이 %s원에 낙찰되었습니다.",
                             product.getName(), formatAmount(winningAmount)),
-                    "/my/products"
+                    "/auctions/" + product.getId()
             );
         }
 
@@ -110,7 +110,7 @@ public class AuctionCompletionService {
                     "낙찰되었어요! 결제를 진행해주세요",
                     String.format("[%s] %s원에 낙찰되었습니다. %d시간 내(%s까지) 잔액을 충전하고 결제해주세요. 미결제 시 유찰 처리됩니다.",
                             product.getName(), formatAmount(winningAmount), PAYMENT_DEADLINE_HOURS, deadline),
-                    "/auctions/" + auction.getId()
+                    "/auctions/" + product.getId()
             );
 
             log.info("[AuctionCompletion] AWAITING_PAYMENT auctionId={}, winnerId={}, amount={}, deadline={}",
@@ -246,7 +246,7 @@ public class AuctionCompletionService {
                     "낙찰자 미결제로 유찰되었습니다",
                     String.format("[%s] 낙찰자가 기한 내 결제하지 않아 유찰 처리되었습니다. 필요 시 재등록해주세요.",
                             product.getName()),
-                    "/my/products"
+                    "/auctions/" + product.getId()
             );
         }
 
@@ -289,7 +289,7 @@ public class AuctionCompletionService {
                 "결제가 완료되었습니다",
                 String.format("[%s] %s원 결제 완료. 곧 발송 준비됩니다.",
                         product.getName(), formatAmount(amount)),
-                "/auctions/" + auction.getId()
+                "/auctions/" + product.getId()
         );
     }
 
@@ -367,7 +367,7 @@ public class AuctionCompletionService {
                 Notification.NotificationType.PRODUCT_AUCTION_FAILED,
                 title,
                 content,
-                "/auctions/" + auction.getId()
+                "/auctions/" + product.getId()
         );
     }
 

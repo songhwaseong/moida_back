@@ -30,7 +30,9 @@ public record AdminProductDetailResponse(
         String registeredAt,
         String description,
         String returnRequestReason,
-        String returnRequestedAt
+        String returnRequestedAt,
+        String reviewRevisionReason,
+        String reviewRevisionRequestedAt
 ) {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
@@ -69,7 +71,9 @@ public record AdminProductDetailResponse(
                 product.getCreatedAt() == null ? "-" : product.getCreatedAt().format(DATE_FMT),
                 product.getDescription(),
                 product.getReturnRequestReason(),
-                product.getReturnRequestedAt() == null ? null : product.getReturnRequestedAt().format(DATE_FMT)
+                product.getReturnRequestedAt() == null ? null : product.getReturnRequestedAt().format(DATE_FMT),
+                product.getReviewRevisionReason(),
+                product.getReviewRevisionRequestedAt() == null ? null : product.getReviewRevisionRequestedAt().format(DATE_FMT)
         );
     }
 }

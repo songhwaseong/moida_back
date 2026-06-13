@@ -70,9 +70,11 @@ public class Notification extends BaseTimeEntity {
         SANCTION,                       // 제재 발생
         NOTICE,                         // 공지사항
         PRODUCT_APPROVED,               // 상품 승인 완료
+        PRODUCT_REVISION_REQUESTED,     // 상품 보완 요청
         PRODUCT_AUCTION_STARTED,        // 등록 상품 경매 시작
         PRODUCT_AUCTION_FAILED,         // 등록 상품 유찰
         PRODUCT_SOLD,                   // 등록 상품 낙찰 (판매자에게)
+        WALLET_DEPOSIT_CONFIRMED,       // 가상계좌 입금 승인
         DELIVERY_SHIPPED,               // 시연용 발송 알림
         DELIVERY_IN_TRANSIT,            // 시연용 배송중 알림
         DELIVERY_DELIVERED,             // 시연용 배송완료 알림

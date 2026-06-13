@@ -31,7 +31,7 @@ public class InquiryService {
 
     @Transactional(readOnly = true)
     public List<InquiryResponse> getProductInquiries(Long productId, Long memberId) {
-        // 상세 조회 정책과 동일하게 본인 PENDING/HIDDEN/환수 진행 상품도 허용한다.
+        // 상세 조회 정책과 동일하게 본인 PENDING/NEEDS_REVISION/HIDDEN/환수 진행 상품도 허용한다.
         // (findVisibleProductDetail 만 쓰면 본인 비공개 상품의 문의 목록이 항상 404 가 된다.)
         Product product = productRepository.findOwnProductDetail(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
@@ -40,6 +40,7 @@ public class InquiryService {
         boolean isOwner = memberId != null && product.isOwnedBy(memberId);
         if (status == ProductStatus.DELETED
                 || ((status == ProductStatus.PENDING
+                || status == ProductStatus.NEEDS_REVISION
                 || status == ProductStatus.HIDDEN
                 || status == ProductStatus.RETURN_REQUESTED
                 || status == ProductStatus.RETURN_SHIPPING

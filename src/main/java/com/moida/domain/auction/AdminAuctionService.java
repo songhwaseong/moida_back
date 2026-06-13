@@ -82,7 +82,7 @@ public class AdminAuctionService {
                             "경매가 시작됐어요",
                             String.format("'%s' 상품 경매가 시작됐습니다. 경매 종료 전까지 입찰 현황을 확인해보세요.",
                                     auction.getProduct().getName()),
-                            "/auctions/" + auction.getId()
+                            "/auctions/" + auction.getProduct().getId()
                     );
                 }
             }
@@ -102,7 +102,7 @@ public class AdminAuctionService {
                             Notification.NotificationType.PRODUCT_AUCTION_FAILED,
                             "경매가 유찰됐어요",
                             String.format("[%s] 경매가 유찰 처리되었습니다. 필요 시 재등록해주세요.", product.getName()),
-                            "/auctions/" + auction.getId()
+                            "/auctions/" + product.getId()
                     );
                 }
             }

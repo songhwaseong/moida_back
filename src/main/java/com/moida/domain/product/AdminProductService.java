@@ -41,8 +41,6 @@ public class AdminProductService {
     private final ProductImageStorageService productImageStorageService;
     /** 최소 호가 단위 기본값. 등록 시 입력값을 저장하지 않으므로 보수적으로 1,000원으로 둔다. */
     private static final long DEFAULT_MIN_BID_UNIT = 1_000L;
-    /** 시연용: 경매예정(SCHEDULED) 진입 후 자동으로 LIVE 로 전환되기까지의 대기 시간(초). */
-    private static final int AUTO_GO_LIVE_DELAY_SECONDS = 10;
 
     /** 전체 상품 목록 (삭제 상태 제외) */
     @Transactional(readOnly = true)
@@ -63,10 +61,11 @@ public class AdminProductService {
         long total = products.size();
         long selling = products.stream().filter(p -> p.getStatus() == ProductStatus.SCHEDULED).count();
         long approving = products.stream().filter(p -> p.getStatus() == ProductStatus.PENDING).count();
+        long revisionRequested = products.stream().filter(p -> p.getStatus() == ProductStatus.NEEDS_REVISION).count();
         long inBid = products.stream().filter(p -> p.getStatus() == ProductStatus.LIVE).count();
         long hidden = products.stream().filter(p -> p.getStatus() == ProductStatus.HIDDEN).count();
 
-        return new AdminProductStatsResponse(total, selling, approving, inBid, hidden);
+        return new AdminProductStatsResponse(total, selling, approving, revisionRequested, inBid, hidden);
     }
 
     /** 상품 상세 (이미지 전체 포함) */
@@ -132,17 +131,25 @@ public class AdminProductService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
         ProductStatus previousStatus = product.getStatus();
-        product.changeStatus(status);
+        if (status == ProductStatus.NEEDS_REVISION) {
+            product.requestRevision(normalizeRevisionReason(reason));
+        } else {
+            product.changeStatus(status);
+            if (previousStatus == ProductStatus.NEEDS_REVISION) {
+                product.clearRevisionRequest();
+            }
+        }
 
-        // 경매예정 진입 시 자동 LIVE 전환 예약 시각(now + 24h)을 기록한다.
-        // 관리자가 그 전에 수동으로 LIVE 로 올리면, LIVE 가 된 상품은 스케줄러 조회 대상에서 빠진다.
+        // 경매예정 진입 시 자동 LIVE 전환 예약은 하지 않는다.
+        // 경매 시작은 관리자 화면에서 SCHEDULED → LIVE 로 수동 처리한다.
         if (status == ProductStatus.SCHEDULED) {
-            product.scheduleAuctionAt(LocalDateTime.now().plusSeconds(AUTO_GO_LIVE_DELAY_SECONDS));
+            product.scheduleAuctionAt(null);
         }
 
         if (status == ProductStatus.RETURN_REQUESTED
                 || status == ProductStatus.RETURN_SHIPPING
                 || status == ProductStatus.RETURN_COMPLETED
+                || status == ProductStatus.NEEDS_REVISION
                 || status == ProductStatus.HIDDEN
                 || status == ProductStatus.DELETED) {
             product.scheduleAuctionAt(null);
@@ -160,6 +167,9 @@ public class AdminProductService {
         if (previousStatus == ProductStatus.PENDING && status == ProductStatus.SCHEDULED) {
             notifyProductApproved(product);
         }
+        if (previousStatus == ProductStatus.PENDING && status == ProductStatus.NEEDS_REVISION) {
+            notifyProductRevisionRequested(product, reason);
+        }
         adminActionLogService.record(
                 "PRODUCT_STATUS_CHANGE",
                 "PRODUCT",
@@ -169,6 +179,17 @@ public class AdminProductService {
                 adminActionLogService.fields("status", product.getStatus(), "auctionScheduledAt", product.getAuctionScheduledAt()),
                 reason
         );
+    }
+
+    private String normalizeRevisionReason(String reason) {
+        String normalized = reason == null ? null : reason.trim();
+        if (normalized == null || normalized.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "보완 요청 사유를 입력해야 합니다.");
+        }
+        if (normalized.length() > 500) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "보완 요청 사유는 500자 이내로 입력해주세요.");
+        }
+        return normalized;
     }
 
     private void notifyProductApproved(Product product) {
@@ -235,7 +256,17 @@ public class AdminProductService {
                 Notification.NotificationType.PRODUCT_AUCTION_STARTED,
                 "경매가 시작됐어요",
                 String.format("'%s' 상품 경매가 시작됐습니다. 경매 종료 전까지 입찰 현황을 확인해보세요.", product.getName()),
-                "/auctions/" + auction.getId()
+                "/auctions/" + product.getId()
+        );
+    }
+
+    private void notifyProductRevisionRequested(Product product, String reason) {
+        notificationService.createAndPush(
+                product.getSeller(),
+                Notification.NotificationType.PRODUCT_REVISION_REQUESTED,
+                "상품 보완이 필요해요",
+                String.format("'%s' 상품 승인 요청이 보완요청 상태로 변경되었습니다. 사유: %s", product.getName(), reason),
+                "/my/products"
         );
     }
 

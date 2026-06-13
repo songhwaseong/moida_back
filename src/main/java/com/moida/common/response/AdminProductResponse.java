@@ -29,7 +29,9 @@ public record AdminProductResponse(
         String carrierCode,
         String trackingNo,
         String returnRequestReason,
-        String returnRequestedAt
+        String returnRequestedAt,
+        String reviewRevisionReason,
+        String reviewRevisionRequestedAt
 ) {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
@@ -38,6 +40,7 @@ public record AdminProductResponse(
         return switch (status) {
             case SCHEDULED -> "경매예정";
             case PENDING -> "승인요청중";
+            case NEEDS_REVISION -> "보완요청";
             case LIVE -> "경매중";
             case SOLD -> "낙찰";
             case FAILED -> "유찰";
@@ -77,7 +80,9 @@ public record AdminProductResponse(
                 product.getCarrierCode(),
                 product.getTrackingNo(),
                 product.getReturnRequestReason(),
-                product.getReturnRequestedAt() == null ? null : product.getReturnRequestedAt().format(DATE_FMT)
+                product.getReturnRequestedAt() == null ? null : product.getReturnRequestedAt().format(DATE_FMT),
+                product.getReviewRevisionReason(),
+                product.getReviewRevisionRequestedAt() == null ? null : product.getReviewRevisionRequestedAt().format(DATE_FMT)
         );
     }
 }

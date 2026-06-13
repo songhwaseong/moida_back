@@ -56,7 +56,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // type/category/status 는 null 허용 동적 필터로, 인자가 비면 해당 조건을 무시한다.
     //   - status=LIVE      → 실시간 경매 섹션
     //   - status=SCHEDULED → 경매 예정 매물 섹션
-    // 삭제(DELETED)/숨김(HIDDEN)/승인대기(PENDING) 상품은 어떤 조건에서도 노출되지 않도록 항상 제외한다.
+    // 삭제(DELETED)/숨김(HIDDEN)/승인대기(PENDING)/보완요청(NEEDS_REVISION) 상품은 어떤 조건에서도 노출되지 않도록 항상 제외한다.
     // 정렬은 호출자가 Pageable.sort 로 주입한다(기본: 최신순, 인기: viewCount 우선).
     // seller/category 를 fetch join 해 카드 표시에 필요한 연관을 미리 로딩한다.
     @Query("""
@@ -70,6 +70,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
               and p.status not in (com.moida.domain.product.ProductStatus.DELETED,
                                    com.moida.domain.product.ProductStatus.HIDDEN,
                                    com.moida.domain.product.ProductStatus.PENDING,
+                                   com.moida.domain.product.ProductStatus.NEEDS_REVISION,
                                    com.moida.domain.product.ProductStatus.RETURN_REQUESTED,
                                    com.moida.domain.product.ProductStatus.RETURN_SHIPPING,
                                    com.moida.domain.product.ProductStatus.RETURN_COMPLETED)
@@ -93,13 +94,14 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
               and p.status not in (com.moida.domain.product.ProductStatus.DELETED,
                                    com.moida.domain.product.ProductStatus.HIDDEN,
                                    com.moida.domain.product.ProductStatus.PENDING,
+                                   com.moida.domain.product.ProductStatus.NEEDS_REVISION,
                                    com.moida.domain.product.ProductStatus.RETURN_REQUESTED,
                                    com.moida.domain.product.ProductStatus.RETURN_SHIPPING,
                                    com.moida.domain.product.ProductStatus.RETURN_COMPLETED)
             """)
     Optional<Product> findVisibleProductDetail(@Param("id") Long id);
 
-    // 판매자 본인의 상세 조회용. 본인 상품은 PENDING/HIDDEN 도 볼 수 있어야 하므로 상태 필터 없이 가져온다.
+    // 판매자 본인의 상세 조회용. 본인 상품은 PENDING/NEEDS_REVISION/HIDDEN 도 볼 수 있어야 하므로 상태 필터 없이 가져온다.
     // (DELETED 만 호출자에서 걸러낸다.)
     @Query("""
             select distinct p

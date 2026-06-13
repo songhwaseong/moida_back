@@ -176,12 +176,13 @@ public class NotificationService {
         return switch (type) {
             case BID_PLACED, BID_OUTBID -> setting.isBidEnabled();
             case CHAT_MESSAGE -> setting.isChatEnabled();
-            case PRODUCT_APPROVED, PRODUCT_AUCTION_STARTED, PRODUCT_AUCTION_FAILED -> setting.isProductStatusEnabled();
+            case PRODUCT_APPROVED, PRODUCT_REVISION_REQUESTED, PRODUCT_AUCTION_STARTED, PRODUCT_AUCTION_FAILED -> setting.isProductStatusEnabled();
             case INQUIRY_NEW, INQUIRY_ANSWERED -> setting.isInquiryEnabled();
             case AUCTION_WON,
                     AUCTION_WON_PAYMENT_REQUIRED,
                     PRODUCT_SOLD,
                     PAYMENT_COMPLETED,
+                    WALLET_DEPOSIT_CONFIRMED,
                     AUCTION_FAILED_BY_NONPAYMENT,
                     AUCTION_LOST,
                     AUCTION_ENDED,

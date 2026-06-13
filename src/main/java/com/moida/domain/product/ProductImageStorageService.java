@@ -93,7 +93,6 @@ public class ProductImageStorageService {
         if (images == null || images.isEmpty()) {
             return List.of();
         }
-        ensureConfigured();
         return images.stream()
                 .map(image -> promoteTempImage(image, memberId))
                 .toList();
@@ -190,6 +189,7 @@ public class ProductImageStorageService {
             return storageReference;
         }
 
+        ensureConfigured();
         String permanentKey = storageReference.substring("temp/".length());
         copyTempImage(storageReference, permanentKey);
         deleteTempImage(storageReference);

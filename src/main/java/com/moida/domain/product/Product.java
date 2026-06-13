@@ -92,6 +92,12 @@ public class Product extends BaseTimeEntity {
     @Column(name = "return_requested_at")
     private LocalDateTime returnRequestedAt;
 
+    @Column(name = "review_revision_reason", length = 500)
+    private String reviewRevisionReason;
+
+    @Column(name = "review_revision_requested_at")
+    private LocalDateTime reviewRevisionRequestedAt;
+
     // 등록 시 입력된 즉시낙찰가/최소 호가단위를 보관한다.
     // SCHEDULED → LIVE 전환 시점에 AdminProductService 가 Auction 엔티티로 옮겨 사용한다.
     // 즉시낙찰가는 선택값이므로 nullable, 최소 호가단위도 누락 시 기본값으로 폴백한다.
@@ -144,6 +150,18 @@ public class Product extends BaseTimeEntity {
 
     public void changeStatus(ProductStatus status) {
         this.status = status;
+    }
+
+    public void requestRevision(String reason) {
+        this.status = ProductStatus.NEEDS_REVISION;
+        this.reviewRevisionReason = reason;
+        this.reviewRevisionRequestedAt = LocalDateTime.now();
+        this.auctionScheduledAt = null;
+    }
+
+    public void clearRevisionRequest() {
+        this.reviewRevisionReason = null;
+        this.reviewRevisionRequestedAt = null;
     }
 
     // 경매예정(SCHEDULED) 진입 시 자동 LIVE 전환 예약 시각을 기록한다.

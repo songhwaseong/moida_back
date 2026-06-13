@@ -48,7 +48,7 @@ public class ProductChatService {
     // 응답에 실제 방 상태를 포함해 종료된 상품은 읽기 전용으로 보여준다.
     @Transactional(readOnly = true)
     public ProductChatMessagesResponse getMessages(Long productId, Long currentMemberId, Integer size) {
-        // 상세 조회 정책과 동일하게 본인 PENDING/HIDDEN 도 허용한다.
+        // 상세 조회 정책과 동일하게 본인 PENDING/NEEDS_REVISION/HIDDEN 도 허용한다.
         Product product = productRepository.findOwnProductDetail(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
         assertVisibleFor(product, currentMemberId);
@@ -74,7 +74,7 @@ public class ProductChatService {
     // 검증, 방 생성, 도배 방지, 저장, 캐시 무효화를 한곳에서 처리한다.
     @Transactional
     public ProductChatMessageResponse createMessage(Long productId, Long memberId, ProductChatMessageRequest request) {
-        // 상세 조회 정책과 동일하게 본인 PENDING/HIDDEN 도 허용한다.
+        // 상세 조회 정책과 동일하게 본인 PENDING/NEEDS_REVISION/HIDDEN 도 허용한다.
         Product product = productRepository.findOwnProductDetail(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
         assertVisibleFor(product, memberId);
@@ -169,12 +169,13 @@ public class ProductChatService {
     }
 
     // ProductService.getProduct 와 동일한 가시성 정책.
-    // DELETED 는 모두 차단, PENDING/HIDDEN/환수 진행 상태는 본인만 허용한다.
+    // DELETED 는 모두 차단, PENDING/NEEDS_REVISION/HIDDEN/환수 진행 상태는 본인만 허용한다.
     private void assertVisibleFor(Product product, Long memberId) {
         ProductStatus status = product.getStatus();
         boolean isOwner = memberId != null && product.isOwnedBy(memberId);
         if (status == ProductStatus.DELETED
                 || ((status == ProductStatus.PENDING
+                || status == ProductStatus.NEEDS_REVISION
                 || status == ProductStatus.HIDDEN
                 || status == ProductStatus.RETURN_REQUESTED
                 || status == ProductStatus.RETURN_SHIPPING
@@ -208,6 +209,7 @@ public class ProductChatService {
                 || product.getStatus() == ProductStatus.RETURN_REQUESTED
                 || product.getStatus() == ProductStatus.RETURN_SHIPPING
                 || product.getStatus() == ProductStatus.RETURN_COMPLETED
+                || product.getStatus() == ProductStatus.NEEDS_REVISION
                 || product.getStatus() == ProductStatus.HIDDEN
                 || product.getStatus() == ProductStatus.DELETED;
     }

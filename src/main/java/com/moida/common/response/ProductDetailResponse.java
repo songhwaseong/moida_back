@@ -52,7 +52,9 @@ public record ProductDetailResponse(
         String auctionStatus,
         String paymentDeadline,
         Boolean isWinner,
-        List<BidHistoryResponse> bidHistory
+        List<BidHistoryResponse> bidHistory,
+        String reviewRevisionReason,
+        String reviewRevisionRequestedAt
 ) {
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm");
 
@@ -127,7 +129,9 @@ public record ProductDetailResponse(
                 (auction != null && auction.getPaymentDeadline() != null)
                         ? auction.getPaymentDeadline().format(DATE_TIME_FORMAT) : null,
                 isWinner,
-                bids.stream().map(BidHistoryResponse::from).toList()
+                bids.stream().map(BidHistoryResponse::from).toList(),
+                summary.reviewRevisionReason(),
+                summary.reviewRevisionRequestedAt()
         );
     }
 }

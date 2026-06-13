@@ -9,6 +9,8 @@ import com.moida.common.response.WalletResponse;
 import com.moida.domain.audit.AdminActionLogService;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
+import com.moida.domain.notification.Notification;
+import com.moida.domain.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,7 @@ public class WalletService {
     private final MemberBankAccountRepository accountRepository;
     private final WalletTransactionRepository transactionRepository;
     private final AdminActionLogService adminActionLogService;
+    private final NotificationService notificationService;
 
     /**
      * 회원의 지갑 정보(잔액, 출금 계좌, 거래 내역)를 조회합니다.
@@ -136,6 +139,14 @@ public class WalletService {
         member.chargeBalance(transaction.getAmount());
         transaction.completeDeposit();
         recordWalletAdminAction("WALLET_DEPOSIT_CONFIRM", transaction, reason);
+        notificationService.createAndPush(
+                member,
+                Notification.NotificationType.WALLET_DEPOSIT_CONFIRMED,
+                "입금이 승인됐어요",
+                String.format("%,d원이 지갑 잔액에 반영되었습니다. 구매 내역에서 진행 중인 거래를 확인해보세요.",
+                        transaction.getAmount()),
+                "/my/purchases"
+        );
 
         return buildWalletResponse(member);
     }

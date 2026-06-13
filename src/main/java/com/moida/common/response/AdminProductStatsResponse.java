@@ -8,6 +8,7 @@ public record AdminProductStatsResponse(
         long total,      // 전체 상품
         long selling,    // 경매예정(SCHEDULED)
         long approving,  // 승인요청중(PENDING)
+        long revisionRequested, // 보완요청(NEEDS_REVISION)
         long inBid,      // 경매중(LIVE)
         long hidden      // 숨김(HIDDEN)
 ) {

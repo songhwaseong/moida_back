@@ -39,15 +39,16 @@ public class ProductService {
 
     private static final Set<String> SUPPORTED_CARRIER_CODES = Set.of("01", "04", "05", "06", "08", "11", "12", "23");
 
-    // 판매자가 직접 수정할 수 있는 상품 상태(경매예정/유찰/숨김).
+    // 판매자가 직접 수정할 수 있는 상품 상태(경매예정/보완요청/유찰/숨김).
     private static final Set<ProductStatus> USER_EDITABLE_STATUSES =
-            Set.of(ProductStatus.SCHEDULED, ProductStatus.FAILED, ProductStatus.HIDDEN);
+            Set.of(ProductStatus.SCHEDULED, ProductStatus.NEEDS_REVISION, ProductStatus.FAILED, ProductStatus.HIDDEN);
     private static final Set<ProductStatus> USER_RETURN_REQUESTABLE_STATUSES =
             Set.of(ProductStatus.PENDING, ProductStatus.SCHEDULED, ProductStatus.FAILED);
     // 수정 시 사용자가 지정할 수 있는 상태(승인요청=PENDING / 숨김=HIDDEN). 경매예정·진행중·낙찰 등은 관리자·시스템이 관리한다.
     // 상품을 수정하면 다시 관리자 승인을 받도록 PENDING 으로 되돌릴 수 있다.
     private static final Set<ProductStatus> USER_SETTABLE_STATUSES =
             Set.of(ProductStatus.PENDING, ProductStatus.HIDDEN);
+    private static final String DEFAULT_LOCATION = "전국 배송";
 
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
@@ -101,7 +102,7 @@ public class ProductService {
                 .type(ProductType.AUCTION)
                 .condition(request.toProductCondition()) // "S급" → ProductCondition.S
                 .price(request.getPrice())
-                .location(request.getLocation())
+                .location(normalizeLocation(request.getLocation()))
                 .carrierCode(carrierCode)
                 .trackingNo(trackingNo)
                 .mainImageUrl(mainImageUrl)        // Base64 문자열 (추후 S3 등으로 교체)
@@ -128,7 +129,7 @@ public class ProductService {
         return saved.getId(); // 저장된 상품 ID 반환
     }
     // 판매자 본인이 자신의 상품을 수정한다.
-    // 수정 가능한 상태(경매예정/유찰/숨김)만 허용하고, 상태 변경은 노출/숨김 토글(SCHEDULED/HIDDEN)로 제한한다.
+    // 수정 가능한 상태(경매예정/보완요청/유찰/숨김)만 허용하고, 상태 변경은 승인요청/숨김(PENDING/HIDDEN)으로 제한한다.
     // (LIVE/SOLD/PENDING/DELETED 는 진행 중이거나 검수/종료 상태라 사용자 임의 수정을 막는다.)
     @Transactional
     public Long updateMyProduct(Long productId, Long memberId, ProductUpdateRequest request) {
@@ -139,7 +140,7 @@ public class ProductService {
             throw new BusinessException(ErrorCode.NOT_PRODUCT_OWNER);
         }
         if (!USER_EDITABLE_STATUSES.contains(product.getStatus())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "경매예정·유찰·숨김 상태의 상품만 수정할 수 있습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "경매예정·보완요청·유찰·숨김 상태의 상품만 수정할 수 있습니다.");
         }
 
         Category category = null;
@@ -183,6 +184,9 @@ public class ProductService {
         ProductStatus targetStatus = parseUserSettableStatus(request.getStatus());
         if (targetStatus != null) {
             product.changeStatus(targetStatus);
+            if (targetStatus == ProductStatus.PENDING) {
+                product.clearRevisionRequest();
+            }
         }
 
         log.info("[ProductService] updateMyProduct productId={}, memberId={}, status={}",
@@ -247,6 +251,10 @@ public class ProductService {
     private String normalizeTrackingNo(String value) {
         String normalized = normalizeShipmentValue(value);
         return normalized == null ? null : normalized.replaceAll("[^0-9]", "");
+    }
+
+    private String normalizeLocation(String value) {
+        return value == null || value.isBlank() ? DEFAULT_LOCATION : value.trim();
     }
 
     private void validateShipment(String carrierCode, String trackingNo) {
@@ -350,6 +358,7 @@ public class ProductService {
                 .filter(product -> product.getStatus() != ProductStatus.DELETED)
                 .filter(product -> product.getStatus() != ProductStatus.HIDDEN)
                 .filter(product -> product.getStatus() != ProductStatus.PENDING)
+                .filter(product -> product.getStatus() != ProductStatus.NEEDS_REVISION)
                 .filter(product -> product.getStatus() != ProductStatus.RETURN_REQUESTED)
                 .filter(product -> product.getStatus() != ProductStatus.RETURN_SHIPPING)
                 .filter(product -> product.getStatus() != ProductStatus.RETURN_COMPLETED)
@@ -371,16 +380,17 @@ public class ProductService {
     public ProductDetailResponse getProduct(Long productId, Long memberId) {
         log.info("[ProductService] getProduct start productId={}, memberId={}", productId, memberId);
         // 상세 화면은 판매자, 카테고리, 이미지 목록까지 함께 필요하므로 전용 fetch query를 사용한다.
-        // 판매자 본인은 자신의 PENDING/HIDDEN 상품도 볼 수 있어야 하므로,
+        // 판매자 본인은 자신의 PENDING/NEEDS_REVISION/HIDDEN 상품도 볼 수 있어야 하므로,
         // 상태 필터 없는 쿼리로 먼저 가져와 본인 여부를 확인한 뒤 가시성 정책을 적용한다.
         Product product = productRepository.findOwnProductDetail(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
         ProductStatus status = product.getStatus();
         boolean isOwner = memberId != null && product.isOwnedBy(memberId);
-        // DELETED 는 본인도 조회 불가. PENDING/HIDDEN 은 본인만 조회 가능.
+        // DELETED 는 본인도 조회 불가. PENDING/NEEDS_REVISION/HIDDEN 은 본인만 조회 가능.
         if (status == ProductStatus.DELETED
                 || ((status == ProductStatus.PENDING
+                || status == ProductStatus.NEEDS_REVISION
                 || status == ProductStatus.HIDDEN
                 || status == ProductStatus.RETURN_REQUESTED
                 || status == ProductStatus.RETURN_SHIPPING

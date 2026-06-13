@@ -137,7 +137,9 @@ public class AuctionBidService {
             completionService.finalizeWinner(auction, bidder, amount);
         }
 
-        notifySellerBidPlaced(product, auction, bidder, amount);
+        if (!immediateBid) {
+            notifySellerBidPlaced(product, bidder, amount);
+        }
 
         List<Bid> bidHistory = bidRepository.findHistoryByAuctionId(auction.getId());
         log.info("[AuctionBidService] bid saved productId={}, auctionId={}, bidId={}, bidderId={}, amount={}",
@@ -155,7 +157,7 @@ public class AuctionBidService {
         return immediatePrice != null && amount >= immediatePrice;
     }
 
-    private void notifySellerBidPlaced(Product product, Auction auction, Member bidder, long amount) {
+    private void notifySellerBidPlaced(Product product, Member bidder, long amount) {
         Member seller = product.getSeller();
         if (seller == null) return;
 
@@ -165,7 +167,7 @@ public class AuctionBidService {
                 "새 입찰이 들어왔어요",
                 String.format("'%s' 상품에 %s님이 %,d원으로 입찰했습니다.",
                         product.getName(), bidder.getName(), amount),
-                "/auctions/" + auction.getId()
+                "/auctions/" + product.getId()
         );
     }
 }

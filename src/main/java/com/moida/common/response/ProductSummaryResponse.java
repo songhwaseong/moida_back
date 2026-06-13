@@ -40,7 +40,9 @@ public record ProductSummaryResponse(
         String auctionStatus,
         String paymentDeadline,
         String deliveryStatus,
-        String deliveryStatusLabel
+        String deliveryStatusLabel,
+        String reviewRevisionReason,
+        String reviewRevisionRequestedAt
 ) {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm");
@@ -91,7 +93,9 @@ public record ProductSummaryResponse(
                 auction != null && auction.getPaymentDeadline() != null
                         ? auction.getPaymentDeadline().format(DATE_TIME_FORMAT) : null,
                 auction != null && auction.getDeliveryStatus() != null ? auction.getDeliveryStatus().name() : null,
-                auction != null ? deliveryStatusLabel(auction.getDeliveryStatus()) : null
+                auction != null ? deliveryStatusLabel(auction.getDeliveryStatus()) : null,
+                product.getReviewRevisionReason(),
+                product.getReviewRevisionRequestedAt() == null ? null : product.getReviewRevisionRequestedAt().format(DATE_TIME_FORMAT)
         );
     }
 

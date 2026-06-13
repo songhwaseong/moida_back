@@ -16,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -71,19 +73,22 @@ public class AuctionDeliveryService {
                 auction.updateDeliveryStatus(DeliveryStatus.SHIPMENT_NOTICE);
                 notifyBuyer(buyer, product, Notification.NotificationType.DELIVERY_SHIPPED,
                         "상품이 발송됐어요",
-                        String.format("[%s] 상품이 발송되었습니다. 곧 배송이 시작됩니다.", product.getName()));
+                        String.format("[%s] 상품이 발송되었습니다. 곧 배송이 시작됩니다.", product.getName()),
+                        DeliveryStatus.SHIPMENT_NOTICE);
             }
             case SHIPMENT_NOTICE -> {
                 auction.updateDeliveryStatus(DeliveryStatus.SHIPPING);
                 notifyBuyer(buyer, product, Notification.NotificationType.DELIVERY_IN_TRANSIT,
                         "상품이 배송중이에요",
-                        String.format("[%s] 상품이 배송중입니다.", product.getName()));
+                        String.format("[%s] 상품이 배송중입니다.", product.getName()),
+                        DeliveryStatus.SHIPPING);
             }
             case SHIPPING -> {
                 auction.updateDeliveryStatus(DeliveryStatus.DELIVERED);
                 notifyBuyer(buyer, product, Notification.NotificationType.DELIVERY_DELIVERED,
                         "배송이 완료됐어요",
-                        String.format("[%s] 배송이 완료되었습니다. 구매내역에서 수령확인을 눌러주세요.", product.getName()));
+                        String.format("[%s] 배송이 완료되었습니다. 구매내역에서 수령확인을 눌러주세요.", product.getName()),
+                        DeliveryStatus.DELIVERED);
             }
             default -> {
             }
@@ -123,7 +128,7 @@ public class AuctionDeliveryService {
                 "정산이 완료됐어요",
                 String.format("[%s] 수령확인이 완료되어 %,d원이 정산되었습니다. 수수료 %,d원이 제외되었습니다.",
                         product.getName(), settlement.getSettledAmount(), settlement.getFeeAmount()),
-                "/my/products"
+                "/auctions/" + product.getId()
         );
         notificationService.createAndPush(
                 buyer,
@@ -137,13 +142,31 @@ public class AuctionDeliveryService {
     }
 
     private void notifyBuyer(Member buyer, Product product, Notification.NotificationType type,
-                             String title, String content) {
+                             String title, String content, DeliveryStatus status) {
         notificationService.createAndPush(
                 buyer,
                 type,
                 title,
                 content,
-                "/my/purchases"
+                trackingLink(product, status)
         );
+    }
+
+    private String trackingLink(Product product, DeliveryStatus status) {
+        String carrierCode = hasText(product.getCarrierCode()) ? product.getCarrierCode() : "04";
+        String trackingNo = hasText(product.getTrackingNo()) ? product.getTrackingNo() : demoTrackingNo(product.getId());
+        return "/my/tracking?carrier=" + carrierCode
+                + "&invoice=" + trackingNo
+                + "&status=" + status.name()
+                + "&product=" + URLEncoder.encode(product.getName(), StandardCharsets.UTF_8);
+    }
+
+    private String demoTrackingNo(Long productId) {
+        long seed = productId == null ? 0L : Math.abs(productId);
+        return String.format("900%010d", seed % 10_000_000_000L);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

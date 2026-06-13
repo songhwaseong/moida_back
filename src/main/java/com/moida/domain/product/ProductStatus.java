@@ -3,6 +3,7 @@ package com.moida.domain.product;
 public enum ProductStatus {
     SCHEDULED,    // 경매예정
     PENDING,      // 승인요청중
+    NEEDS_REVISION, // 보완요청
     LIVE,         // 경매중
     SOLD,         // 낙찰
     FAILED,       // 유찰
