@@ -26,17 +26,20 @@ public record PurchaseHistoryResponse(
         Boolean canConfirmReceipt,
         String purchasedAt,
         String deliveredAt,
-        String receivedAt
+        String receivedAt,
+        Boolean reviewed,
+        Boolean canReview
 ) {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm");
 
     public static PurchaseHistoryResponse from(Auction auction, Settlement settlement) {
-        return from(auction, settlement, UnaryOperator.identity());
+        return from(auction, settlement, false, UnaryOperator.identity());
     }
 
     public static PurchaseHistoryResponse from(
             Auction auction,
             Settlement settlement,
+            boolean reviewed,
             UnaryOperator<String> imageUrlResolver
     ) {
         Product product = auction.getProduct();
@@ -44,6 +47,7 @@ public record PurchaseHistoryResponse(
         boolean canConfirmReceipt = deliveryStatus == DeliveryStatus.DELIVERED
                 && settlement != null
                 && settlement.getStatus() == Settlement.SettlementStatus.PENDING;
+        boolean canReview = deliveryStatus == DeliveryStatus.RECEIVED && !reviewed;
 
         return new PurchaseHistoryResponse(
                 product.getId(),
@@ -63,7 +67,9 @@ public record PurchaseHistoryResponse(
                 canConfirmReceipt,
                 auction.getUpdatedAt() == null ? null : auction.getUpdatedAt().format(FORMATTER),
                 auction.getDeliveryStatusUpdatedAt() == null ? null : auction.getDeliveryStatusUpdatedAt().format(FORMATTER),
-                auction.getReceivedAt() == null ? null : auction.getReceivedAt().format(FORMATTER)
+                auction.getReceivedAt() == null ? null : auction.getReceivedAt().format(FORMATTER),
+                reviewed,
+                canReview
         );
     }
 

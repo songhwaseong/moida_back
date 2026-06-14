@@ -8,6 +8,7 @@ import com.moida.domain.notification.Notification;
 import com.moida.domain.notification.NotificationService;
 import com.moida.domain.product.Product;
 import com.moida.domain.product.ProductImageStorageService;
+import com.moida.domain.review.ReviewRepository;
 import com.moida.domain.settlement.Settlement;
 import com.moida.domain.settlement.SettlementRepository;
 import com.moida.domain.wallet.WalletService;
@@ -20,6 +21,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -32,6 +34,7 @@ public class AuctionDeliveryService {
     private final NotificationService notificationService;
     private final WalletService walletService;
     private final ProductImageStorageService productImageStorageService;
+    private final ReviewRepository reviewRepository;
 
     @Transactional(readOnly = true)
     public List<PurchaseHistoryResponse> getMyPurchases(Long memberId) {
@@ -44,10 +47,14 @@ public class AuctionDeliveryService {
         Map<Long, Settlement> settlementByAuctionId = settlementRepository.findAllByAuctionIdIn(auctionIds).stream()
                 .collect(Collectors.toMap(s -> s.getAuction().getId(), s -> s));
 
+        List<Long> productIds = auctions.stream().map(auction -> auction.getProduct().getId()).toList();
+        Set<Long> reviewedProductIds = Set.copyOf(reviewRepository.findReviewedProductIds(memberId, productIds));
+
         return auctions.stream()
                 .map(auction -> PurchaseHistoryResponse.from(
                         auction,
                         settlementByAuctionId.get(auction.getId()),
+                        reviewedProductIds.contains(auction.getProduct().getId()),
                         productImageStorageService::toPublicUrl
                 ))
                 .toList();

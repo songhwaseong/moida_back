@@ -173,6 +173,12 @@ public class Member extends BaseTimeEntity {
         this.balance -= amount;
     }
 
+    /** 후기 평점에 따른 매너온도 가감. 0.0 ~ 99.0 범위로 보정한다. */
+    public void applyMannerTempChange(double delta) {
+        double current = this.mannerTemp == null ? 36.5 : this.mannerTemp;
+        this.mannerTemp = Math.max(0.0, Math.min(99.0, current + delta));
+    }
+
     public void increaseSalesCount() { this.salesCount++; }
     public void increasePurchaseCount() { this.purchaseCount++; }
     public void increaseBidCount() { this.bidCount++; }

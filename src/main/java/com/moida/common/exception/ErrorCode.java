@@ -40,6 +40,11 @@ public enum ErrorCode {
     INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "AC004", "잔액이 부족합니다."),
     SELF_BID_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "AC005", "본인 상품에는 입찰할 수 없습니다."),
 
+    // Review
+    REVIEW_NOT_ALLOWED(HttpStatus.FORBIDDEN, "R001", "후기를 작성할 수 없는 거래입니다."),
+    REVIEW_RECEIPT_NOT_CONFIRMED(HttpStatus.BAD_REQUEST, "R002", "수령확인 후 후기를 작성할 수 있습니다."),
+    REVIEW_ALREADY_WRITTEN(HttpStatus.CONFLICT, "R003", "이미 후기를 작성한 상품입니다."),
+
     // Wallet 관련 에러 코드
     /** 등록된 출금 계좌를 찾을 수 없는 경우 */
     WALLET_ACCOUNT_NOT_FOUND(HttpStatus.BAD_REQUEST, "W001", "등록된 출금 계좌가 없습니다."),
