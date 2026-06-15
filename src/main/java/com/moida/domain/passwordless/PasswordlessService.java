@@ -21,7 +21,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PasswordlessService {
 
-    private static final int REQUEST_EXPIRES_IN_SECONDS = 300;
+    private static final int REQUEST_EXPIRES_IN_SECONDS = 60;
     private static final String STATUS_APPROVED = "APPROVED";
     private static final String STATUS_DENIED = "DENIED";
     private static final String STATUS_PENDING = "PENDING";
