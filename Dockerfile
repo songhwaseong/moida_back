@@ -32,4 +32,5 @@ EXPOSE 9000
 ENTRYPOINT ["java", \
   "-Djava.security.egd=file:/dev/./urandom", \
   "-Dfile.encoding=UTF-8", \
+  "-Duser.timezone=Asia/Seoul", \
   "-jar", "app.jar"]

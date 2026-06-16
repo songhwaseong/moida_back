@@ -4,10 +4,16 @@ spring:
     username: ${DB_USERNAME:moidadb}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-init-sql: SET time_zone = '+09:00'
 
   jpa:
     hibernate:
       ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Seoul
     show-sql: false
 
 cors:

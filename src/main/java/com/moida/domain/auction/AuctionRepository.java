@@ -23,6 +23,16 @@ public interface AuctionRepository extends JpaRepository<Auction, Long> {
             select a
             from Auction a
             join fetch a.product p
+            left join fetch a.winner
+            where a.id = :auctionId
+            """)
+    Optional<Auction> findByIdForUpdate(@Param("auctionId") Long auctionId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select a
+            from Auction a
+            join fetch a.product p
             where p.id = :productId
             """)
     Optional<Auction> findByProductIdForUpdate(@Param("productId") Long productId);

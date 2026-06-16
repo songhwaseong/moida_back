@@ -62,10 +62,20 @@ public class AuctionDeliveryService {
 
     @Transactional
     public void advanceDeliveryById(Long auctionId) {
-        Auction auction = auctionRepository.findById(auctionId)
+        advanceDeliveryById(auctionId, null);
+    }
+
+    @Transactional
+    public void advanceDeliveryById(Long auctionId, DeliveryStatus expectedStatus) {
+        Auction auction = auctionRepository.findByIdForUpdate(auctionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
         DeliveryStatus status = auction.getDeliveryStatus();
         if (auction.getStatus() != AuctionStatus.SUCCESS || status == null) {
+            return;
+        }
+        if (expectedStatus != null && status != expectedStatus) {
+            log.info("[AuctionDelivery] skip stale advance auctionId={}, expectedStatus={}, currentStatus={}",
+                    auctionId, expectedStatus, status);
             return;
         }
 
@@ -150,12 +160,15 @@ public class AuctionDeliveryService {
 
     private void notifyBuyer(Member buyer, Product product, Notification.NotificationType type,
                              String title, String content, DeliveryStatus status) {
+        String linkUrl = type == Notification.NotificationType.DELIVERY_DELIVERED
+                ? "/my/purchases"
+                : trackingLink(product, status);
         notificationService.createAndPush(
                 buyer,
                 type,
                 title,
                 content,
-                trackingLink(product, status)
+                linkUrl
         );
     }
 

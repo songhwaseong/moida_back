@@ -35,7 +35,7 @@ public class AuctionDeliveryScheduler {
             log.info("[AuctionDeliveryScheduler] status={} targets={}", status, targets.size());
             for (Auction auction : targets) {
                 try {
-                    deliveryService.advanceDeliveryById(auction.getId());
+                    deliveryService.advanceDeliveryById(auction.getId(), status);
                 } catch (Exception e) {
                     log.error("[AuctionDeliveryScheduler] advance failed auctionId={}", auction.getId(), e);
                 }
