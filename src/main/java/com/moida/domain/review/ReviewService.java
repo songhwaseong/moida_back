@@ -10,6 +10,7 @@ import com.moida.domain.auction.AuctionStatus;
 import com.moida.domain.auction.DeliveryStatus;
 import com.moida.domain.member.Member;
 import com.moida.domain.product.Product;
+import com.moida.domain.product.ProductImageStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -27,6 +28,7 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final AuctionRepository auctionRepository;
+    private final ProductImageStorageService productImageStorageService;
 
     @Transactional(readOnly = true)
     public List<ReceivedReviewResponse> getReceivedReviews(Long memberId, Integer size) {
@@ -36,7 +38,7 @@ public class ReviewService {
                         PageRequest.of(0, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"))
                 )
                 .stream()
-                .map(ReceivedReviewResponse::from)
+                .map(review -> ReceivedReviewResponse.from(review, productImageStorageService::toPublicUrl))
                 .toList();
     }
 
