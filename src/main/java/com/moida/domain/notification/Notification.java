@@ -75,6 +75,7 @@ public class Notification extends BaseTimeEntity {
         PRODUCT_AUCTION_FAILED,         // 등록 상품 유찰
         PRODUCT_SOLD,                   // 등록 상품 낙찰 (판매자에게)
         WALLET_DEPOSIT_CONFIRMED,       // 가상계좌 입금 승인
+        WALLET_WITHDRAWAL_CONFIRMED,    // 출금 승인
         DELIVERY_SHIPPED,               // 시연용 발송 알림
         DELIVERY_IN_TRANSIT,            // 시연용 배송중 알림
         DELIVERY_DELIVERED,             // 시연용 배송완료 알림

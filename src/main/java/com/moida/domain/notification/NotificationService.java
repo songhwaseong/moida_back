@@ -183,6 +183,7 @@ public class NotificationService {
                     PRODUCT_SOLD,
                     PAYMENT_COMPLETED,
                     WALLET_DEPOSIT_CONFIRMED,
+                    WALLET_WITHDRAWAL_CONFIRMED,
                     AUCTION_FAILED_BY_NONPAYMENT,
                     AUCTION_LOST,
                     AUCTION_ENDED,

@@ -168,6 +168,14 @@ public class WalletService {
         member.deductBalance(transaction.getAmount());
         transaction.completeWithdrawal();
         recordWalletAdminAction("WALLET_WITHDRAWAL_CONFIRM", transaction, reason);
+        notificationService.createAndPush(
+                member,
+                Notification.NotificationType.WALLET_WITHDRAWAL_CONFIRMED,
+                "출금이 완료되었어요",
+                String.format("%,d원이 등록된 계좌로 출금 처리되었습니다. 내 계좌에서 거래 내역을 확인해보세요.",
+                        transaction.getAmount()),
+                "/my/wallet"
+        );
 
         return buildWalletResponse(member);
     }

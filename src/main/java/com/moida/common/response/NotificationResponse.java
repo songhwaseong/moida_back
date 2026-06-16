@@ -51,6 +51,7 @@ public record NotificationResponse(
                         PRODUCT_AUCTION_FAILED,
                         PRODUCT_SOLD,
                         WALLET_DEPOSIT_CONFIRMED,
+                        WALLET_WITHDRAWAL_CONFIRMED,
                         DELIVERY_SHIPPED,
                         DELIVERY_IN_TRANSIT,
                         DELIVERY_DELIVERED,
