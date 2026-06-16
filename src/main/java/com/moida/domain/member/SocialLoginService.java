@@ -19,14 +19,12 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-
 @Service
 @RequiredArgsConstructor
 public class SocialLoginService {
     private final MemberRepository memberRepository;
     private final MemberSocialAccountRepository socialAccountRepository;
+    private final MemberNoGenerator memberNoGenerator;
     private final PasswordEncoder passwordEncoder;
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -77,7 +75,7 @@ public class SocialLoginService {
                 })
                 .orElseGet(() -> {
                     Member member = memberRepository.save(Member.builder()
-                            .memberNo(generateMemberNo())
+                            .memberNo(memberNoGenerator.generate())
                             .email(email)
                             .password(passwordEncoder.encode(provider.name() + "_SOCIAL"))
                             .name(name)
@@ -97,12 +95,6 @@ public class SocialLoginService {
                         .providerUserId(providerUserId)
                         .providerEmail(email)
                         .build()));
-    }
-
-    private String generateMemberNo() {
-        return LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-                + String.format("%05d", memberRepository.count() + 1);
     }
 
     private String requireProviderUserId(String providerUserId) {

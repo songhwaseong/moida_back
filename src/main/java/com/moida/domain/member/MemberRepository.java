@@ -16,6 +16,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     Optional<Member> findByMemberNo(String memberNo);
 
+    Optional<Member> findTopByMemberNoStartingWithOrderByMemberNoDesc(String prefix);
+
     List<Member> findAllByNameAndStatus(String name, MemberStatus status);
 
     List<Member> findAllByStatus(MemberStatus status);

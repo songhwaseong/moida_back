@@ -21,8 +21,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -40,6 +38,7 @@ public class MemberService {
     private final ProductLikeRepository productLikeRepository;
     private final MemberSocialAccountRepository socialAccountRepository;
     private final AdminActionLogService adminActionLogService;
+    private final MemberNoGenerator memberNoGenerator;
 
     public Optional<Member> findByEmail(String email) {
         return memberRepository.findByEmail(email);
@@ -118,7 +117,7 @@ public class MemberService {
         }
 
         Member member = Member.builder()
-                .memberNo(generateMemberNo())
+                .memberNo(memberNoGenerator.generate())
                 .email(email)
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .name(dto.getName())
@@ -270,12 +269,6 @@ public class MemberService {
                 normalizedPhone,
                 dto.getLocation()
         );
-    }
-
-    private String generateMemberNo() {
-        return LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-                + String.format("%05d", memberRepository.count() + 1);
     }
 
     public MemberProfileResponse getMemberProfile(Long memberId) {
