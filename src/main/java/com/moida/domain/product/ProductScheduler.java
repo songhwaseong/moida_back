@@ -2,6 +2,7 @@ package com.moida.domain.product;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -32,6 +33,7 @@ public class ProductScheduler {
     private final AdminProductService adminProductService;
 
     @Scheduled(fixedDelay = FIXED_DELAY_MS, initialDelay = 10_000L)
+    @SchedulerLock(name = "ProductScheduler_activateScheduledProducts", lockAtMostFor = "PT30S")
     public void activateScheduledProducts() {
         LocalDateTime now = LocalDateTime.now();
         List<Product> targets = productRepository.findAllByStatusAndAuctionScheduledAtBefore(

@@ -2,6 +2,7 @@ package com.moida.domain.auction;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +21,7 @@ public class AuctionDeliveryScheduler {
     private final AuctionDeliveryService deliveryService;
 
     @Scheduled(fixedDelay = FIXED_DELAY_MS, initialDelay = 10_000L)
+    @SchedulerLock(name = "AuctionDeliveryScheduler_advanceDemoDeliveries", lockAtMostFor = "PT30S")
     public void advanceDemoDeliveries() {
         LocalDateTime threshold = LocalDateTime.now().minusSeconds(DEMO_STEP_SECONDS);
         for (DeliveryStatus status : List.of(

@@ -2,6 +2,7 @@ package com.moida.domain.auction;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -31,6 +32,7 @@ public class AuctionScheduler {
     private final AuctionCompletionService completionService;
 
     @Scheduled(fixedDelay = FIXED_DELAY_MS, initialDelay = 30_000L)
+    @SchedulerLock(name = "AuctionScheduler_closeEndedAuctions", lockAtMostFor = "PT50S")
     public void closeEndedAuctions() {
         LocalDateTime now = LocalDateTime.now();
         List<Auction> targets = auctionRepository.findAllByStatusAndEndAtBefore(AuctionStatus.LIVE, now);
@@ -47,6 +49,7 @@ public class AuctionScheduler {
     }
 
     @Scheduled(fixedDelay = FIXED_DELAY_MS, initialDelay = 45_000L)
+    @SchedulerLock(name = "AuctionScheduler_expireUnpaidAuctions", lockAtMostFor = "PT50S")
     public void expireUnpaidAuctions() {
         LocalDateTime now = LocalDateTime.now();
         List<Auction> targets = auctionRepository.findAllByStatusAndPaymentDeadlineBefore(

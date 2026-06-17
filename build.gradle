@@ -35,6 +35,11 @@ dependencies {
     // 멀티 인스턴스 WebSocket 브로드캐스트 릴레이용 Redis Pub/Sub (운영 프로파일에서만 활성)
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
+    // ShedLock — EC2 2대 이상에서 @Scheduled 가 인스턴스마다 중복 실행되는 것을 막아
+    //            클러스터 전체에서 단 한 인스턴스만 스케줄을 실행하도록 한다. (DB 락 테이블 기반)
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:5.16.0'
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:5.16.0'
+
     // MySQL
     runtimeOnly 'com.mysql:mysql-connector-j'
 

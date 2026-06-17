@@ -129,7 +129,10 @@ public class AuctionCompletionService {
      */
     @Transactional
     public void payForWinningAuction(Long auctionId, Long memberId) {
-        Auction auction = auctionRepository.findById(auctionId)
+        // 경매 행을 먼저 비관적 락으로 잡는다(락 순서: auction → member).
+        // 만료 스케줄러(expireUnpaidAuction)도 같은 행을 FOR UPDATE 로 잡으므로,
+        // 둘 중 하나만 진행되고 다른 하나는 갱신된 상태를 보고 거절된다(이중 처리 방지).
+        Auction auction = auctionRepository.findByIdForUpdate(auctionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
 
         if (auction.getStatus() != AuctionStatus.AWAITING_PAYMENT) {
@@ -173,7 +176,8 @@ public class AuctionCompletionService {
      */
     @Transactional
     public void closeEndedAuctionById(Long auctionId) {
-        Auction auction = auctionRepository.findById(auctionId).orElse(null);
+        // 입찰 경로와 동일하게 비관적 행 락으로 조회 — 동시에 들어오는 결제/타 스케줄러 처리와 직렬화.
+        Auction auction = auctionRepository.findByIdForUpdate(auctionId).orElse(null);
         if (auction == null || auction.getStatus() != AuctionStatus.LIVE) return;
         if (auction.getEndAt() != null && LocalDateTime.now().isBefore(auction.getEndAt())) return;
 
@@ -202,7 +206,9 @@ public class AuctionCompletionService {
      */
     @Transactional
     public void expireUnpaidAuction(Long auctionId) {
-        Auction auction = auctionRepository.findById(auctionId).orElse(null);
+        // 비관적 행 락 — 사용자의 결제(payForWinningAuction)와 동시에 들어올 때 직렬화하여
+        // "한쪽은 SUCCESS, 한쪽은 FAILED" 같은 상태 불일치를 막는다.
+        Auction auction = auctionRepository.findByIdForUpdate(auctionId).orElse(null);
         if (auction == null) return;
         if (auction.getStatus() != AuctionStatus.AWAITING_PAYMENT) return;
         if (auction.getPaymentDeadline() == null || LocalDateTime.now().isBefore(auction.getPaymentDeadline())) return;

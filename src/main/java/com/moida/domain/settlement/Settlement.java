@@ -14,6 +14,8 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @Table(name = "settlements",
+        // 참고: auction_id 의 UNIQUE 제약은 @OneToOne 매핑상 Hibernate 가 자동 생성한다
+        //       (운영 DB에 UK...auction_id 인덱스로 존재 확인됨). 이중 정산은 이 제약이 최종 방어한다.
         indexes = {
                 @Index(name = "idx_settlement_status", columnList = "status"),
                 @Index(name = "idx_settlement_seller", columnList = "seller_id")
