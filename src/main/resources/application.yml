@@ -52,7 +52,10 @@ server:
       force: true
 
 jwt:
-  secret: ${JWT_SECRET:moida-local-secret-key-must-be-at-least-32-bytes-long}
+  # 운영에서는 JWT_SECRET 을 반드시 환경변수로 주입한다. 기본값을 두지 않아,
+  # 누락 시 조용히 공개된 키로 서명하는 대신 부팅이 실패(fail-fast)하도록 한다.
+  # 로컬/테스트용 키는 application-local.yml / application-test.yml 에서 따로 지정.
+  secret: ${JWT_SECRET}
   access-token-validity: 3600000
   refresh-token-validity: 1209600000
 
