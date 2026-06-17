@@ -50,9 +50,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
+        // 상세 원인은 서버 로그에만 남기고, 클라이언트에는 고정 문구만 응답한다.
+        // (e.getMessage() 를 그대로 내보내면 SQL/내부 구조 등이 노출될 수 있음)
         log.error("Unhandled exception", e);
         return ResponseEntity
                 .status(ErrorCode.INTERNAL_SERVER_ERROR.getStatus())
-                .body(ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR.getCode(), e.getMessage()));
+                .body(ApiResponse.error(
+                        ErrorCode.INTERNAL_SERVER_ERROR.getCode(),
+                        ErrorCode.INTERNAL_SERVER_ERROR.getMessage()));
     }
 }
