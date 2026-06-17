@@ -34,15 +34,25 @@ public class JwtTokenProvider {
         this.refreshTokenValidity = refreshTokenValidity;
     }
 
+    /** 토큰 종류 구분 클레임. access 를 refresh 로(또는 그 반대로) 오용하는 것을 막는다. */
+    public static final String CLAIM_TYPE = "type";
+    public static final String TYPE_ACCESS = "access";
+    public static final String TYPE_REFRESH = "refresh";
+
     public String createAccessToken(Long memberId, String email, MemberRole role) {
-        return createToken(memberId, email, role, accessTokenValidity);
+        return createToken(memberId, email, role, accessTokenValidity, TYPE_ACCESS);
     }
 
     public String createRefreshToken(Long memberId, String email, MemberRole role) {
-        return createToken(memberId, email, role, refreshTokenValidity);
+        return createToken(memberId, email, role, refreshTokenValidity, TYPE_REFRESH);
     }
 
-    private String createToken(Long memberId, String email, MemberRole role, long validity) {
+    /** refresh 토큰 유효기간(ms). 서버측 refresh 토큰 저장 시 만료시각 산정에 사용한다. */
+    public long getRefreshTokenValidity() {
+        return refreshTokenValidity;
+    }
+
+    private String createToken(Long memberId, String email, MemberRole role, long validity, String type) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + validity);
 
@@ -50,6 +60,7 @@ public class JwtTokenProvider {
                 .subject(String.valueOf(memberId))
                 .claim("email", email)
                 .claim("role", role.name())
+                .claim(CLAIM_TYPE, type)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
@@ -65,6 +76,15 @@ public class JwtTokenProvider {
         List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
         CustomUserDetails principal = new CustomUserDetails(memberId, email, "", authorities);
         return new UsernamePasswordAuthenticationToken(principal, "", authorities);
+    }
+
+    /** 토큰의 type 클레임이 기대한 종류인지 확인. (서명/만료 검증은 validateToken 으로 별도 수행) */
+    public boolean isTokenType(String token, String expectedType) {
+        try {
+            return expectedType.equals(parseClaims(token).get(CLAIM_TYPE, String.class));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public boolean validateToken(String token) {

@@ -7,6 +7,7 @@ import com.moida.common.response.PasswordlessLoginCompleteResponse;
 import com.moida.common.response.PasswordlessLoginStartResponse;
 import com.moida.common.response.PasswordlessRegistrationStartResponse;
 import com.moida.domain.auth.EmailVerificationService;
+import com.moida.domain.auth.RefreshTokenService;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
 import com.moida.security.JwtTokenProvider;
@@ -32,6 +33,7 @@ public class PasswordlessService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final EmailVerificationService emailVerificationService;
+    private final RefreshTokenService refreshTokenService;
 
     @Transactional(readOnly = true)
     public boolean isRegistered(Long memberId) {
@@ -144,6 +146,7 @@ public class PasswordlessService {
             member.updateLastLogin();
             String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
             String refreshToken = jwtTokenProvider.createRefreshToken(member.getId(), member.getEmail(), member.getRole());
+            refreshTokenService.store(member.getId(), refreshToken, jwtTokenProvider.getRefreshTokenValidity());
             return new PasswordlessLoginCompleteResponse(
                     STATUS_APPROVED,
                     new LoginResponse(accessToken, refreshToken, member, false)

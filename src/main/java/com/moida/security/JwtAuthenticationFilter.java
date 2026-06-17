@@ -30,7 +30,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = resolveToken(request);
 
-        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+        // access 토큰만 인증에 사용한다. refresh 토큰을 Authorization 헤더로 보내도 거부(타입 미일치).
+        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)
+                && jwtTokenProvider.isTokenType(token, JwtTokenProvider.TYPE_ACCESS)) {
             Authentication authentication = jwtTokenProvider.getAuthentication(token);
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
             // 기존 토큰이어도 탈퇴/정지 회원이면 인증 컨텍스트를 세팅하지 않는다.

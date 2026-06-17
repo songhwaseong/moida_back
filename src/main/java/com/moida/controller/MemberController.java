@@ -15,6 +15,7 @@ import com.moida.common.response.RefreshTokenResponse;
 import com.moida.common.util.ClientIpResolver;
 import com.moida.domain.audit.AdminLoginLogService;
 import com.moida.domain.auth.PhoneVerificationService;
+import com.moida.domain.auth.RefreshTokenService;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberService;
 import com.moida.domain.member.SocialLoginService;
@@ -50,6 +51,7 @@ public class MemberController {
     private final SocialLoginService socialLoginService;
     private final PhoneVerificationService phoneVerificationService;
     private final AdminLoginLogService adminLoginLogService;
+    private final RefreshTokenService refreshTokenService;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(
@@ -86,12 +88,18 @@ public class MemberController {
             @Valid @RequestBody RefreshTokenRequest request
     ) {
         String refreshToken = request.getRefreshToken();
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "Invalid refresh token.");
+        // 서명/만료 + "refresh 타입"인지 검증 (access 토큰을 refresh 로 오용하는 것을 차단)
+        if (!jwtTokenProvider.validateToken(refreshToken)
+                || !jwtTokenProvider.isTokenType(refreshToken, JwtTokenProvider.TYPE_REFRESH)) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN, "유효하지 않은 refresh 토큰입니다.");
         }
 
         Authentication authentication = jwtTokenProvider.getAuthentication(refreshToken);
         CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
+
+        // 서버에 저장된 토큰과 일치하는지 확인 (로그아웃됐거나 이미 회전된 토큰은 거부)
+        refreshTokenService.validate(principal.getMemberId(), refreshToken);
+
         Member member = memberService.findByEmail(principal.getEmail())
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
@@ -101,10 +109,21 @@ public class MemberController {
 
         String newAccessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
         String newRefreshToken = jwtTokenProvider.createRefreshToken(member.getId(), member.getEmail(), member.getRole());
+        // 회전: 새 refresh 토큰을 저장해 방금 사용한 토큰을 무효화한다.
+        refreshTokenService.store(member.getId(), newRefreshToken, jwtTokenProvider.getRefreshTokenValidity());
 
         return ResponseEntity.ok(ApiResponse.success(
                 new RefreshTokenResponse(newAccessToken, newRefreshToken)
         ));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<String>> logout(Authentication authentication) {
+        // access 토큰이 유효하면 필터가 인증을 세팅한다. 해당 회원의 저장된 refresh 토큰을 폐기한다.
+        if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails principal) {
+            refreshTokenService.revoke(principal.getMemberId());
+        }
+        return ResponseEntity.ok(ApiResponse.success("로그아웃 되었습니다."));
     }
 
     @PostMapping("/signup")
@@ -207,6 +226,7 @@ public class MemberController {
         }
         String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getId(), member.getEmail(), member.getRole());
+        refreshTokenService.store(member.getId(), refreshToken, jwtTokenProvider.getRefreshTokenValidity());
         return new LoginResponse(accessToken, refreshToken, member, newUser);
     }
 }
