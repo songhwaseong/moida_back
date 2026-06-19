@@ -30,6 +30,9 @@ public enum ErrorCode {
     PASSWORDLESS_LOGIN_REQUIRED(HttpStatus.FORBIDDEN, "M008", "Passwordless가 등록된 계정입니다.\nPasswordless로 로그인해주세요."),
     LOGIN_TEMPORARILY_LOCKED(HttpStatus.TOO_MANY_REQUESTS, "M009", "로그인 시도가 너무 많아 일시적으로 잠겼습니다. 잠시 후 다시 시도해주세요."),
 
+    SOCIAL_EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "M010", "The social provider email is not verified."),
+    SOCIAL_ACCOUNT_LINK_REQUIRED(HttpStatus.CONFLICT, "M011", "Sign in to the existing account before linking this social account."),
+
     // Product
     PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "상품을 찾을 수 없습니다."),
     NOT_PRODUCT_OWNER(HttpStatus.FORBIDDEN, "P002", "상품의 판매자가 아닙니다."),

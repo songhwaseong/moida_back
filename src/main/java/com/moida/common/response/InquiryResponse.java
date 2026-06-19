@@ -22,24 +22,36 @@ public record InquiryResponse(
         Boolean isSecret
 ) {
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm");
+    private static final String SECRET_USER = "Private";
+    private static final String SECRET_QUESTION = "This is a private inquiry.";
 
     public static InquiryResponse from(Inquiry inquiry) {
         return from(inquiry, UnaryOperator.identity());
     }
 
     public static InquiryResponse from(Inquiry inquiry, UnaryOperator<String> imageUrlResolver) {
+        return from(inquiry, imageUrlResolver, true);
+    }
+
+    public static InquiryResponse from(Inquiry inquiry, boolean canViewSecret) {
+        return from(inquiry, UnaryOperator.identity(), canViewSecret);
+    }
+
+    public static InquiryResponse from(Inquiry inquiry, UnaryOperator<String> imageUrlResolver,
+                                       boolean canViewSecret) {
+        boolean maskSecret = Boolean.TRUE.equals(inquiry.getIsSecret()) && !canViewSecret;
         return new InquiryResponse(
                 inquiry.getId(),
                 inquiry.getProduct().getId(),
                 inquiry.getProduct().getName(),
                 imageUrlResolver.apply(inquiry.getProduct().getMainImageUrl()),
                 inquiry.getSeller().getName(),
-                inquiry.getUser().getName(),
+                maskSecret ? SECRET_USER : inquiry.getUser().getName(),
                 kind(inquiry.getProduct().getStatus()),
                 format(inquiry.getCreatedAt()),
-                inquiry.getQuestion(),
-                inquiry.getAnswer(),
-                format(inquiry.getAnsweredAt()),
+                maskSecret ? SECRET_QUESTION : inquiry.getQuestion(),
+                maskSecret ? null : inquiry.getAnswer(),
+                maskSecret ? null : format(inquiry.getAnsweredAt()),
                 inquiry.getIsSecret()
         );
     }

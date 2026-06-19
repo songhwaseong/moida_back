@@ -25,13 +25,13 @@ public class PhoneVerificationController {
 
     @PostMapping("/send")
     public ResponseEntity<ApiResponse<Void>> send(@Valid @RequestBody PhoneCodeSendRequest request) {
-        phoneVerificationService.sendCode(request.getPhone());
+        phoneVerificationService.sendCode(request.getPhone(), request.getPurpose());
         return ResponseEntity.ok(ApiResponse.success(null, "인증번호를 전송했습니다."));
     }
 
     @PostMapping("/verify")
     public ResponseEntity<ApiResponse<Void>> verify(@Valid @RequestBody PhoneCodeVerifyRequest request) {
-        phoneVerificationService.verifyCode(request.getPhone(), request.getCode());
+        phoneVerificationService.verifyCode(request.getPhone(), request.getCode(), request.getPurpose());
         return ResponseEntity.ok(ApiResponse.success(null, "휴대폰 인증이 완료되었습니다."));
     }
 }

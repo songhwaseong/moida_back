@@ -13,10 +13,8 @@ import lombok.Getter;
 @Getter
 public class RefreshTokenResponse {
     private final String accessToken;
-    private final String refreshToken;
 
-    public RefreshTokenResponse(String accessToken, String refreshToken) {
+    public RefreshTokenResponse(String accessToken) {
         this.accessToken = accessToken;
-        this.refreshToken = refreshToken;
     }
 }

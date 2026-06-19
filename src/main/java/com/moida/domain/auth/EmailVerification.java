@@ -42,26 +42,34 @@ public class EmailVerification extends BaseTimeEntity {
     @Column(name = "attempt_count", nullable = false)
     private int attemptCount;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "purpose", length = 40)
+    private VerificationPurpose purpose;
+
     @Builder
-    private EmailVerification(String email, String code, LocalDateTime expiresAt) {
+    private EmailVerification(String email, String code, LocalDateTime expiresAt, VerificationPurpose purpose) {
         this.email = email;
         this.code = code;
         this.expiresAt = expiresAt;
+        this.purpose = purpose;
         this.verified = false;
         this.attemptCount = 0;
     }
 
-    public static EmailVerification issue(String email, String code, LocalDateTime expiresAt) {
+    public static EmailVerification issue(String email, String code, LocalDateTime expiresAt,
+                                          VerificationPurpose purpose) {
         return EmailVerification.builder()
                 .email(email)
                 .code(code)
                 .expiresAt(expiresAt)
+                .purpose(purpose)
                 .build();
     }
 
-    public void renew(String code, LocalDateTime expiresAt) {
+    public void renew(String code, LocalDateTime expiresAt, VerificationPurpose purpose) {
         this.code = code;
         this.expiresAt = expiresAt;
+        this.purpose = purpose;
         this.verified = false;
         this.verifiedAt = null;
         this.attemptCount = 0;
@@ -76,6 +84,11 @@ public class EmailVerification extends BaseTimeEntity {
         this.verifiedAt = now;
     }
 
+    public void consume() {
+        this.verified = false;
+        this.verifiedAt = null;
+    }
+
     public boolean isExpired(LocalDateTime now) {
         return now.isAfter(this.expiresAt);
     }
@@ -84,5 +97,9 @@ public class EmailVerification extends BaseTimeEntity {
         return this.verified
                 && this.verifiedAt != null
                 && Duration.between(this.verifiedAt, now).compareTo(window) <= 0;
+    }
+
+    public boolean isFor(VerificationPurpose expectedPurpose) {
+        return expectedPurpose != null && expectedPurpose == this.purpose;
     }
 }

@@ -1,6 +1,7 @@
 package com.moida.security;
 
 import com.moida.domain.member.MemberRole;
+import com.moida.domain.member.Member;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -39,12 +40,12 @@ public class JwtTokenProvider {
     public static final String TYPE_ACCESS = "access";
     public static final String TYPE_REFRESH = "refresh";
 
-    public String createAccessToken(Long memberId, String email, MemberRole role) {
-        return createToken(memberId, email, role, accessTokenValidity, TYPE_ACCESS);
+    public String createAccessToken(Long memberId, String email, MemberRole role, long tokenVersion) {
+        return createToken(memberId, email, role, tokenVersion, accessTokenValidity, TYPE_ACCESS);
     }
 
-    public String createRefreshToken(Long memberId, String email, MemberRole role) {
-        return createToken(memberId, email, role, refreshTokenValidity, TYPE_REFRESH);
+    public String createRefreshToken(Long memberId, String email, MemberRole role, long tokenVersion) {
+        return createToken(memberId, email, role, tokenVersion, refreshTokenValidity, TYPE_REFRESH);
     }
 
     /** refresh 토큰 유효기간(ms). 서버측 refresh 토큰 저장 시 만료시각 산정에 사용한다. */
@@ -52,7 +53,8 @@ public class JwtTokenProvider {
         return refreshTokenValidity;
     }
 
-    private String createToken(Long memberId, String email, MemberRole role, long validity, String type) {
+    private String createToken(Long memberId, String email, MemberRole role, long tokenVersion,
+                               long validity, String type) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + validity);
 
@@ -60,6 +62,7 @@ public class JwtTokenProvider {
                 .subject(String.valueOf(memberId))
                 .claim("email", email)
                 .claim("role", role.name())
+                .claim("ver", tokenVersion)
                 .claim(CLAIM_TYPE, type)
                 .issuedAt(now)
                 .expiration(expiry)
@@ -85,6 +88,19 @@ public class JwtTokenProvider {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public Authentication createAuthentication(Member member) {
+        List<SimpleGrantedAuthority> authorities = List.of(
+                new SimpleGrantedAuthority("ROLE_" + member.getRole().name()));
+        CustomUserDetails principal = new CustomUserDetails(
+                member.getId(), member.getEmail(), "", authorities);
+        return new UsernamePasswordAuthenticationToken(principal, "", authorities);
+    }
+
+    public long getTokenVersion(String token) {
+        Number version = parseClaims(token).get("ver", Number.class);
+        return version == null ? 0L : version.longValue();
     }
 
     public boolean validateToken(String token) {

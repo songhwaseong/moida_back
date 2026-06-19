@@ -10,8 +10,10 @@ import com.moida.common.response.PasswordlessRegistrationStartResponse;
 import com.moida.common.response.PasswordlessStatusResponse;
 import com.moida.common.util.ClientIpResolver;
 import com.moida.domain.passwordless.PasswordlessService;
+import com.moida.domain.auth.AuthCookieService;
 import com.moida.security.CustomUserDetails;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class PasswordlessController {
 
     private final PasswordlessService passwordlessService;
+    private final AuthCookieService authCookieService;
 
     @PostMapping("/auth/passwordless/login/start")
     public ResponseEntity<ApiResponse<PasswordlessLoginStartResponse>> startLogin(
@@ -41,9 +44,14 @@ public class PasswordlessController {
 
     @PostMapping("/auth/passwordless/login/complete")
     public ResponseEntity<ApiResponse<PasswordlessLoginCompleteResponse>> completeLogin(
-            @Valid @RequestBody PasswordlessRequestTokenRequest request
+            @Valid @RequestBody PasswordlessRequestTokenRequest request,
+            HttpServletResponse response
     ) {
-        return ResponseEntity.ok(ApiResponse.success(passwordlessService.completeLogin(request.requestToken())));
+        PasswordlessLoginCompleteResponse result = passwordlessService.completeLogin(request.requestToken());
+        if (result.login() != null) {
+            authCookieService.issue(response, result.login().getRefreshToken());
+        }
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @PostMapping("/auth/passwordless/login/cancel")

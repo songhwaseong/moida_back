@@ -1,6 +1,7 @@
 package com.moida.common.response;
 
 import com.moida.domain.member.Member;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 
 /**
@@ -12,6 +13,7 @@ import lombok.Getter;
 @Getter
 public class LoginResponse {
     private String accessToken;
+    @JsonIgnore
     private String refreshToken;
     private Long id;
     private String name;

@@ -59,6 +59,10 @@ jwt:
   access-token-validity: 3600000
   refresh-token-validity: 1209600000
 
+auth:
+  cookie:
+    secure: ${AUTH_COOKIE_SECURE:false}
+
 passwordless:
   rest-check-url: ${PASSWORDLESS_REST_CHECK_URL:}
   simple-autopassword-url: ${PASSWORDLESS_SIMPLE_AUTOPASSWORD_URL:}
@@ -89,6 +93,14 @@ tracking:
   sweettracker:
     api-key: ${SWEETTRACKER_API_KEY:}
     base-url: https://info.sweettracker.co.kr/api/v1
+
+external-http:
+  connect-timeout: ${EXTERNAL_HTTP_CONNECT_TIMEOUT:3s}
+  read-timeout: ${EXTERNAL_HTTP_READ_TIMEOUT:5s}
+  read-max-attempts: ${EXTERNAL_HTTP_READ_MAX_ATTEMPTS:2}
+  retry-backoff: ${EXTERNAL_HTTP_RETRY_BACKOFF:200ms}
+  circuit-breaker-failure-threshold: ${EXTERNAL_HTTP_CIRCUIT_FAILURE_THRESHOLD:5}
+  circuit-breaker-open-duration: ${EXTERNAL_HTTP_CIRCUIT_OPEN_DURATION:30s}
 
 moida:
   # 실시간(WebSocket) 멀티 인스턴스 릴레이. 기본 비활성 → 단일 인스턴스로 동작(로컬/테스트).

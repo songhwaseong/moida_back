@@ -52,6 +52,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                         .accessDeniedHandler(jwtAccessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/ws-ticket").authenticated()
                         // Public endpoints
                         .requestMatchers(
                                 "/api/auth/**",

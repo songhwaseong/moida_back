@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
+import com.moida.common.util.ExternalHttpExecutor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -35,6 +37,7 @@ public class PasswordlessClient {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final ExternalHttpExecutor externalHttpExecutor;
     private final String restCheckUrl;
     private final String simpleAutopasswordUrl;
     private final String pushConnectorUrl;
@@ -43,8 +46,9 @@ public class PasswordlessClient {
     private final String corpId;
 
     public PasswordlessClient(
-            RestClient.Builder restClientBuilder,
+            @Qualifier("externalRestClientBuilder") RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper,
+            ExternalHttpExecutor externalHttpExecutor,
             @Value("${passwordless.rest-check-url}") String restCheckUrl,
             @Value("${passwordless.simple-autopassword-url:}") String simpleAutopasswordUrl,
             @Value("${passwordless.push-connector-url}") String pushConnectorUrl,
@@ -54,6 +58,7 @@ public class PasswordlessClient {
     ) {
         this.restClient = restClientBuilder.build();
         this.objectMapper = objectMapper;
+        this.externalHttpExecutor = externalHttpExecutor;
         this.restCheckUrl = trimTrailingSlash(restCheckUrl);
         this.simpleAutopasswordUrl = trimTrailingSlash(simpleAutopasswordUrl);
         this.pushConnectorUrl = pushConnectorUrl;
@@ -139,12 +144,13 @@ public class PasswordlessClient {
 
         String body;
         try {
-            body = restClient.post()
-                    .uri(restCheckUrl + path)
-                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(params)
-                    .retrieve()
-                    .body(String.class);
+            body = externalHttpExecutor.executeOnce("passwordless", () ->
+                    restClient.post()
+                            .uri(restCheckUrl + path)
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .body(params)
+                            .retrieve()
+                            .body(String.class));
         } catch (Exception ex) {
             log.warn("passwordless_remote_call_failed path={}", path, ex);
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Passwordless 서버 호출에 실패했습니다.");

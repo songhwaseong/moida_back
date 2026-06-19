@@ -1,11 +1,14 @@
 package com.moida.domain.member;
 
+import com.moida.common.exception.BusinessException;
+import com.moida.common.exception.ErrorCode;
 import com.moida.common.response.GoogleTokenResponse;
 import com.moida.common.response.GoogleUserResponse;
 import com.moida.common.response.KakaoTokenResponse;
 import com.moida.common.response.KakaoUserResponse;
 import com.moida.common.response.NaverTokenResponse;
 import com.moida.common.response.NaverUserResponse;
+import com.moida.common.util.ExternalHttpExecutor;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,7 +29,8 @@ public class SocialLoginService {
     private final MemberSocialAccountRepository socialAccountRepository;
     private final MemberNoGenerator memberNoGenerator;
     private final PasswordEncoder passwordEncoder;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+    private final ExternalHttpExecutor externalHttpExecutor;
 
     @Value("${social.kakao.client-id}")
     private String kkoClientId;
@@ -56,9 +60,13 @@ public class SocialLoginService {
     }
 
     @Transactional
-    public SocialLoginResult findOrRegisterSocialMember(String email, String name, String socialType, String providerUserId) {
+    public SocialLoginResult findOrRegisterSocialMember(String email, String name, String socialType,
+                                                        String providerUserId, boolean emailVerified) {
         SocialProvider provider = SocialProvider.from(socialType);
         String normalizedProviderUserId = requireProviderUserId(providerUserId);
+        if (!emailVerified || email == null || email.isBlank()) {
+            throw new BusinessException(ErrorCode.SOCIAL_EMAIL_NOT_VERIFIED);
+        }
         String normalizedEmail = normalizeEmail(email, provider, normalizedProviderUserId);
         String displayName = (name == null || name.isBlank()) ? provider.name() + " 회원" : name.trim();
 
@@ -69,10 +77,7 @@ public class SocialLoginService {
 
     private SocialLoginResult linkOrCreateMember(String email, String name, SocialProvider provider, String providerUserId) {
         return memberRepository.findByEmail(email)
-                .map(member -> {
-                    saveSocialAccount(member, provider, providerUserId, email);
-                    return new SocialLoginResult(member, false);
-                })
+                .map(member -> rejectAutomaticLink())
                 .orElseGet(() -> {
                     Member member = memberRepository.save(Member.builder()
                             .memberNo(memberNoGenerator.generate())
@@ -85,6 +90,10 @@ public class SocialLoginService {
                     saveSocialAccount(member, provider, providerUserId, email);
                     return new SocialLoginResult(member, true);
                 });
+    }
+
+    private SocialLoginResult rejectAutomaticLink() {
+        throw new BusinessException(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
     }
 
     private void saveSocialAccount(Member member, SocialProvider provider, String providerUserId, String email) {
@@ -124,23 +133,25 @@ public class SocialLoginService {
         params.add("client_id", kkoClientId);
         params.add("redirect_uri", kkoRedirectUri);
         params.add("code", code);
-        KakaoTokenResponse response = restTemplate.postForObject(
-                "https://kauth.kakao.com/oauth/token",
-                new HttpEntity<>(params, headers),
-                KakaoTokenResponse.class
-        );
+        KakaoTokenResponse response = externalHttpExecutor.executeOnce("oauth-kakao", () ->
+                restTemplate.postForObject(
+                        "https://kauth.kakao.com/oauth/token",
+                        new HttpEntity<>(params, headers),
+                        KakaoTokenResponse.class
+                ));
         return response.getAccessToken();
     }
 
     public KakaoUserResponse getKakaoUserInfo(String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
-        return restTemplate.exchange(
-                "https://kapi.kakao.com/v2/user/me",
-                HttpMethod.GET,
-                new HttpEntity<>(headers),
-                KakaoUserResponse.class
-        ).getBody();
+        return externalHttpExecutor.executeOnce("oauth-kakao", () ->
+                restTemplate.exchange(
+                        "https://kapi.kakao.com/v2/user/me",
+                        HttpMethod.GET,
+                        new HttpEntity<>(headers),
+                        KakaoUserResponse.class
+                ).getBody());
     }
 
     public String getNavAccessToken(String code, String state) {
@@ -150,22 +161,24 @@ public class SocialLoginService {
                 + "&client_secret=" + navClientSecret
                 + "&code=" + code
                 + "&state=" + state;
-        NaverTokenResponse response = restTemplate.getForObject(url, NaverTokenResponse.class);
+        NaverTokenResponse response = externalHttpExecutor.executeOnce("oauth-naver", () ->
+                restTemplate.getForObject(url, NaverTokenResponse.class));
         return response.getAccessToken();
     }
 
     public NaverUserResponse getNaverUserInfo(String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
-        return restTemplate.exchange(
-                "https://openapi.naver.com/v1/nid/me",
-                HttpMethod.GET,
-                new HttpEntity<>(headers),
-                NaverUserResponse.class
-        ).getBody();
+        return externalHttpExecutor.executeOnce("oauth-naver", () ->
+                restTemplate.exchange(
+                        "https://openapi.naver.com/v1/nid/me",
+                        HttpMethod.GET,
+                        new HttpEntity<>(headers),
+                        NaverUserResponse.class
+                ).getBody());
     }
 
-    public String getGoogleAccessToken(String code) {
+    public String getGoogleAccessToken(String code, String codeVerifier) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
@@ -174,22 +187,25 @@ public class SocialLoginService {
         params.add("client_secret", googleClientSecret);
         params.add("redirect_uri", googleRedirectUri);
         params.add("code", code);
-        GoogleTokenResponse response = restTemplate.postForObject(
-                "https://oauth2.googleapis.com/token",
-                new HttpEntity<>(params, headers),
-                GoogleTokenResponse.class
-        );
+        params.add("code_verifier", codeVerifier);
+        GoogleTokenResponse response = externalHttpExecutor.executeOnce("oauth-google", () ->
+                restTemplate.postForObject(
+                        "https://oauth2.googleapis.com/token",
+                        new HttpEntity<>(params, headers),
+                        GoogleTokenResponse.class
+                ));
         return response.getAccessToken();
     }
 
     public GoogleUserResponse getGoogleUserInfo(String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
-        return restTemplate.exchange(
-                "https://www.googleapis.com/oauth2/v2/userinfo",
-                HttpMethod.GET,
-                new HttpEntity<>(headers),
-                GoogleUserResponse.class
-        ).getBody();
+        return externalHttpExecutor.executeOnce("oauth-google", () ->
+                restTemplate.exchange(
+                        "https://www.googleapis.com/oauth2/v2/userinfo",
+                        HttpMethod.GET,
+                        new HttpEntity<>(headers),
+                        GoogleUserResponse.class
+                ).getBody());
     }
 }

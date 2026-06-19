@@ -7,11 +7,13 @@ import com.moida.common.request.FindIdRequest;
 import com.moida.common.response.ApiResponse;
 import com.moida.common.response.FindIdResponse;
 import com.moida.domain.auth.PhoneVerificationService;
+import com.moida.domain.auth.VerificationPurpose;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,13 +30,14 @@ public class FindAccountController {
     @PostMapping("/send-code")
     public ResponseEntity<ApiResponse<Void>> sendCode(@Valid @RequestBody FindIdCodeSendRequest request) {
         memberService.findActiveByNameAndPhone(request.getName(), request.getPhone());
-        phoneVerificationService.sendCode(request.getPhone());
+        phoneVerificationService.sendCode(request.getPhone(), VerificationPurpose.FIND_ID);
         return ResponseEntity.ok(ApiResponse.success(null, "인증번호를 전송했습니다."));
     }
 
     @PostMapping
+    @Transactional
     public ResponseEntity<ApiResponse<FindIdResponse>> findId(@Valid @RequestBody FindIdRequest request) {
-        if (!phoneVerificationService.isVerified(request.getPhone())) {
+        if (!phoneVerificationService.consumeVerified(request.getPhone(), VerificationPurpose.FIND_ID)) {
             throw new BusinessException(ErrorCode.PHONE_NOT_VERIFIED);
         }
         Member member = memberService.findActiveByNameAndPhone(request.getName(), request.getPhone());

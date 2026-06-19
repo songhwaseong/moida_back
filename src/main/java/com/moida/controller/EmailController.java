@@ -7,10 +7,12 @@ import com.moida.common.request.SendEmailCodeRequest;
 import com.moida.common.request.VerifyEmailCodeRequest;
 import com.moida.common.response.ApiResponse;
 import com.moida.domain.auth.EmailVerificationService;
+import com.moida.domain.auth.VerificationPurpose;
 import com.moida.domain.member.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -24,21 +26,22 @@ public class EmailController {
     @PostMapping("/send-code")
     public ResponseEntity<ApiResponse<String>> sendCode(
             @Valid @RequestBody SendEmailCodeRequest request) {
-        emailVerificationService.sendCode(request.getEmail());
+        emailVerificationService.sendCode(request.getEmail(), request.getPurpose());
         return ResponseEntity.ok(ApiResponse.success("인증 코드가 발송됐습니다."));
     }
 
     @PostMapping("/verify-code")
     public ResponseEntity<ApiResponse<String>> verifyCode(
             @Valid @RequestBody VerifyEmailCodeRequest request) {
-        emailVerificationService.verifyCode(request.getEmail(), request.getCode());
+        emailVerificationService.verifyCode(request.getEmail(), request.getCode(), request.getPurpose());
         return ResponseEntity.ok(ApiResponse.success("인증이 완료됐습니다."));
     }
 
     @PostMapping("/reset-password")
+    @Transactional
     public ResponseEntity<ApiResponse<String>> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request) {
-        if (!emailVerificationService.isVerified(request.getEmail())) {
+        if (!emailVerificationService.consumeVerified(request.getEmail(), VerificationPurpose.RESET_PASSWORD)) {
             throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND, "이메일 인증을 먼저 완료해주세요.");
         }
         memberService.resetPassword(request.getEmail(), request.getNewPassword());

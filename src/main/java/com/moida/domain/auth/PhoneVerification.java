@@ -3,6 +3,8 @@ package com.moida.domain.auth;
 import com.moida.common.entity.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -51,6 +53,10 @@ public class PhoneVerification extends BaseTimeEntity {
     @Column(name = "attempt_count", nullable = false)
     private int attemptCount;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "purpose", length = 40)
+    private VerificationPurpose purpose;
+
     @Column(name = "daily_send_count", nullable = false)
     private int dailySendCount;      // 오늘 발송 횟수 (일일 총량 제한용)
 
@@ -58,26 +64,30 @@ public class PhoneVerification extends BaseTimeEntity {
     private LocalDate dailySendDate; // dailySendCount 가 가리키는 날짜
 
     @Builder
-    private PhoneVerification(String phone, String code, LocalDateTime expiresAt) {
+    private PhoneVerification(String phone, String code, LocalDateTime expiresAt, VerificationPurpose purpose) {
         this.phone = phone;
         this.code = code;
         this.expiresAt = expiresAt;
+        this.purpose = purpose;
         this.verified = false;
         this.attemptCount = 0;
     }
 
-    public static PhoneVerification issue(String phone, String code, LocalDateTime expiresAt) {
+    public static PhoneVerification issue(String phone, String code, LocalDateTime expiresAt,
+                                          VerificationPurpose purpose) {
         return PhoneVerification.builder()
                 .phone(phone)
                 .code(code)
                 .expiresAt(expiresAt)
+                .purpose(purpose)
                 .build();
     }
 
     /** 재전송 시 새 코드/만료시각으로 갱신하고 검증/시도 상태를 초기화한다. */
-    public void renew(String code, LocalDateTime expiresAt) {
+    public void renew(String code, LocalDateTime expiresAt, VerificationPurpose purpose) {
         this.code = code;
         this.expiresAt = expiresAt;
+        this.purpose = purpose;
         this.verified = false;
         this.verifiedAt = null;
         this.attemptCount = 0;
@@ -92,6 +102,11 @@ public class PhoneVerification extends BaseTimeEntity {
         this.verifiedAt = now;
     }
 
+    public void consume() {
+        this.verified = false;
+        this.verifiedAt = null;
+    }
+
     public boolean isExpired(LocalDateTime now) {
         return now.isAfter(this.expiresAt);
     }
@@ -101,6 +116,10 @@ public class PhoneVerification extends BaseTimeEntity {
         return this.verified
                 && this.verifiedAt != null
                 && Duration.between(this.verifiedAt, now).compareTo(window) <= 0;
+    }
+
+    public boolean isFor(VerificationPurpose expectedPurpose) {
+        return expectedPurpose != null && expectedPurpose == this.purpose;
     }
 
     /** 오늘 발송 횟수가 limit 이상이면 true(더 보낼 수 없음). 날짜가 바뀌면 오늘 첫 발송이라 false. */

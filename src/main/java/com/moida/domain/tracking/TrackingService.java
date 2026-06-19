@@ -5,7 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moida.common.exception.BusinessException;
 import com.moida.common.exception.ErrorCode;
 import com.moida.common.response.TrackingResponse;
-import lombok.RequiredArgsConstructor;
+import com.moida.common.util.ExternalHttpExecutor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -19,11 +20,21 @@ import java.util.Map;
  * 스마트택배(sweettracker) 배송 조회 API 연동 서비스.
  */
 @Service
-@RequiredArgsConstructor
 public class TrackingService {
 
-    private final RestTemplate restTemplate = new RestTemplate(); // 스마트택배 API HTTP 클라이언트
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
+    private final ExternalHttpExecutor externalHttpExecutor;
+
+    public TrackingService(
+            @Qualifier("externalRestTemplate") RestTemplate restTemplate,
+            ObjectMapper objectMapper,
+            ExternalHttpExecutor externalHttpExecutor
+    ) {
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+        this.externalHttpExecutor = externalHttpExecutor;
+    }
 
     @Value("${tracking.sweettracker.api-key}")
     private String apiKey;          // application.yml → 환경변수 SWEETTRACKER_API_KEY
@@ -57,7 +68,10 @@ public class TrackingService {
 
         JsonNode root;
         try {
-            String body = restTemplate.getForObject(url, String.class);
+            String body = externalHttpExecutor.executeRead(
+                    "sweettracker",
+                    () -> restTemplate.getForObject(url, String.class)
+            );
             root = objectMapper.readTree(body);
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.TRACKING_LOOKUP_FAILED);

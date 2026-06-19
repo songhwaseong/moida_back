@@ -38,6 +38,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 기존 토큰이어도 탈퇴/정지 회원이면 인증 컨텍스트를 세팅하지 않는다.
             memberRepository.findById(userDetails.getMemberId())
                     .filter(member -> member.isActive())
+                    .filter(member -> member.currentTokenVersion() == jwtTokenProvider.getTokenVersion(token))
                     .ifPresent(member -> SecurityContextHolder.getContext().setAuthentication(authentication));
         }
 

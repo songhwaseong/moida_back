@@ -35,7 +35,8 @@ public class PhoneVerificationService {
 
     /** 인증번호 발급 + SMS 발송. 번호당 1행을 재사용한다. */
     @Transactional
-    public void sendCode(String rawPhone) {
+    public void sendCode(String rawPhone, VerificationPurpose purpose) {
+        requirePhonePurpose(purpose);
         String phone = normalize(rawPhone);
         if (phone.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "휴대폰 번호를 입력해주세요.");
@@ -47,7 +48,7 @@ public class PhoneVerificationService {
 
         PhoneVerification verification = repository.findByPhone(phone).orElse(null);
         if (verification == null) {
-            PhoneVerification created = PhoneVerification.issue(phone, code, now.plus(CODE_TTL));
+            PhoneVerification created = PhoneVerification.issue(phone, code, now.plus(CODE_TTL), purpose);
             created.recordSend(today);
             repository.save(created);
         } else {
@@ -60,7 +61,7 @@ public class PhoneVerificationService {
                     && Duration.between(verification.getUpdatedAt(), now).compareTo(RESEND_COOLDOWN) < 0) {
                 throw new BusinessException(ErrorCode.VERIFICATION_RESEND_COOLDOWN);
             }
-            verification.renew(code, now.plus(CODE_TTL));
+            verification.renew(code, now.plus(CODE_TTL), purpose);
             verification.recordSend(today);
         }
 
@@ -69,10 +70,15 @@ public class PhoneVerificationService {
 
     /** 인증번호 검증. 성공 시 verified 로 표시한다. */
     @Transactional
-    public void verifyCode(String rawPhone, String code) {
+    public void verifyCode(String rawPhone, String code, VerificationPurpose purpose) {
+        requirePhonePurpose(purpose);
         String phone = normalize(rawPhone);
         PhoneVerification verification = repository.findByPhone(phone)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VERIFICATION_NOT_FOUND));
+
+        if (!verification.isFor(purpose)) {
+            throw new BusinessException(ErrorCode.VERIFICATION_NOT_FOUND);
+        }
 
         LocalDateTime now = LocalDateTime.now();
         if (verification.isExpired(now)) {
@@ -89,12 +95,18 @@ public class PhoneVerificationService {
     }
 
     /** 가입 등에서 사용: 해당 번호가 최근에 인증 완료되었는지. */
-    @Transactional(readOnly = true)
-    public boolean isVerified(String rawPhone) {
+    @Transactional
+    public boolean consumeVerified(String rawPhone, VerificationPurpose purpose) {
+        requirePhonePurpose(purpose);
         String phone = normalize(rawPhone);
-        return repository.findByPhone(phone)
-                .map(v -> v.isVerifiedWithin(LocalDateTime.now(), VERIFIED_TTL))
-                .orElse(false);
+        PhoneVerification verification = repository.findByPhoneForUpdate(phone)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PHONE_NOT_VERIFIED));
+        if (!verification.isFor(purpose)
+                || !verification.isVerifiedWithin(LocalDateTime.now(), VERIFIED_TTL)) {
+            throw new BusinessException(ErrorCode.PHONE_NOT_VERIFIED);
+        }
+        verification.consume();
+        return true;
     }
 
     private String generateCode() {
@@ -103,5 +115,11 @@ public class PhoneVerificationService {
 
     private String normalize(String phone) {
         return phone == null ? "" : phone.replaceAll("[^0-9]", "");
+    }
+
+    private void requirePhonePurpose(VerificationPurpose purpose) {
+        if (purpose == null || !purpose.supportsPhone()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Invalid phone verification purpose.");
+        }
     }
 }

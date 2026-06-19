@@ -6,6 +6,7 @@ import com.moida.common.request.InquiryRequest;
 import com.moida.common.response.InquiryResponse;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
+import com.moida.domain.member.MemberRole;
 import com.moida.domain.notification.Notification;
 import com.moida.domain.notification.NotificationService;
 import com.moida.domain.product.Product;
@@ -38,6 +39,10 @@ public class InquiryService {
 
         ProductStatus status = product.getStatus();
         boolean isOwner = memberId != null && product.isOwnedBy(memberId);
+        boolean isModerator = memberId != null && memberRepository.findById(memberId)
+                .map(Member::getRole)
+                .map(role -> role == MemberRole.ADMIN || role == MemberRole.MANAGER)
+                .orElse(false);
         if (status == ProductStatus.DELETED
                 || ((status == ProductStatus.PENDING
                 || status == ProductStatus.NEEDS_REVISION
@@ -49,7 +54,9 @@ public class InquiryService {
         }
 
         return inquiryRepository.findAllByProductIdOrderByCreatedAtDesc(productId).stream()
-                .map(InquiryResponse::from)
+                .map(inquiry -> InquiryResponse.from(
+                        inquiry,
+                        isOwner || isModerator || (memberId != null && inquiry.getUser().getId().equals(memberId))))
                 .toList();
     }
 

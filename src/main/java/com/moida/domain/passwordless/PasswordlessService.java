@@ -8,6 +8,7 @@ import com.moida.common.response.PasswordlessLoginStartResponse;
 import com.moida.common.response.PasswordlessRegistrationStartResponse;
 import com.moida.domain.auth.EmailVerificationService;
 import com.moida.domain.auth.RefreshTokenService;
+import com.moida.domain.auth.VerificationPurpose;
 import com.moida.domain.member.Member;
 import com.moida.domain.member.MemberRepository;
 import com.moida.security.JwtTokenProvider;
@@ -103,7 +104,7 @@ public class PasswordlessService {
     @Transactional
     public void withdrawByEmail(String email) {
         Member member = getActiveMemberByEmail(email);
-        if (!emailVerificationService.isVerified(email)) {
+        if (!emailVerificationService.consumeVerified(email, VerificationPurpose.PASSWORDLESS_WITHDRAW)) {
             throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND, "이메일 인증을 먼저 완료해주세요.");
         }
         passwordlessClient.withdraw(member.getId());
@@ -144,8 +145,10 @@ public class PasswordlessService {
         String auth = passwordlessClient.getResult(member.getId(), context.sessionId(), context.random());
         if ("Y".equalsIgnoreCase(auth)) {
             member.updateLastLogin();
-            String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail(), member.getRole());
-            String refreshToken = jwtTokenProvider.createRefreshToken(member.getId(), member.getEmail(), member.getRole());
+            String accessToken = jwtTokenProvider.createAccessToken(
+                    member.getId(), member.getEmail(), member.getRole(), member.currentTokenVersion());
+            String refreshToken = jwtTokenProvider.createRefreshToken(
+                    member.getId(), member.getEmail(), member.getRole(), member.currentTokenVersion());
             refreshTokenService.store(member.getId(), refreshToken, jwtTokenProvider.getRefreshTokenValidity());
             return new PasswordlessLoginCompleteResponse(
                     STATUS_APPROVED,

@@ -120,6 +120,9 @@ public class Member extends BaseTimeEntity {
     @Column(name = "login_locked_until")
     private LocalDateTime loginLockedUntil; // 반복 실패로 잠긴 경우 해제 시각 (null 이면 잠금 아님)
 
+    @Column(name = "token_version")
+    private Long tokenVersion;
+
     @Builder
     private Member(String memberNo, String email, String password, String name, String nickname, String phone,
                    String profileImageUrl, String location, MemberRole role, String socialLogin) {// 소셜 로그인 구분값 추가
@@ -141,6 +144,7 @@ public class Member extends BaseTimeEntity {
         this.nonPaymentCount = 0;
         this.role = role != null ? role : MemberRole.USER;
         this.status = MemberStatus.ACTIVE;
+        this.tokenVersion = 0L;
         this.socialLogin = socialLogin; // 소셜 로그인 구분값 초기화
     }
 
@@ -154,6 +158,14 @@ public class Member extends BaseTimeEntity {
 
     public void changePassword(String encodedPassword) {
         this.password = encodedPassword;
+    }
+
+    public long currentTokenVersion() {
+        return tokenVersion == null ? 0L : tokenVersion;
+    }
+
+    public void invalidateTokens() {
+        this.tokenVersion = currentTokenVersion() + 1L;
     }
 
     public void registerLocalCredentials(String email, String encodedPassword, String name,
@@ -243,6 +255,7 @@ public class Member extends BaseTimeEntity {
     // 관리자가 특정 회원의 역할을 변경할 때 사용
     public void updateRole(MemberRole role) {
         this.role = role;
+        invalidateTokens();
     }
 
     /** Passwordless 등록 확정 시 호출 — 이후 일반 로그인(비번/소셜)이 차단된다. */

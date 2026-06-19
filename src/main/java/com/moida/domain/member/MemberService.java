@@ -10,6 +10,7 @@ import com.moida.common.response.AccountDeactivationInfoResponse;
 import com.moida.common.response.AdminDeactivatedMemberResponse;
 import com.moida.common.response.MemberProfileResponse;
 import com.moida.domain.audit.AdminActionLogService;
+import com.moida.domain.auth.RefreshTokenService;
 import com.moida.domain.auction.AuctionRepository;
 import com.moida.domain.auction.BidRepository;
 import com.moida.domain.product.ProductLikeRepository;
@@ -52,6 +53,7 @@ public class MemberService {
     private final MemberSocialAccountRepository socialAccountRepository;
     private final AdminActionLogService adminActionLogService;
     private final MemberNoGenerator memberNoGenerator;
+    private final RefreshTokenService refreshTokenService;
 
     public Optional<Member> findByEmail(String email) {
         return memberRepository.findByEmail(email);
@@ -331,6 +333,8 @@ public class MemberService {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
         }
         member.changePassword(passwordEncoder.encode(request.getNewPassword()));
+        member.invalidateTokens();
+        refreshTokenService.revoke(member.getId());
     }
 
     @Transactional
@@ -338,5 +342,7 @@ public class MemberService {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         member.changePassword(passwordEncoder.encode(newPassword));
+        member.invalidateTokens();
+        refreshTokenService.revoke(member.getId());
     }
 }

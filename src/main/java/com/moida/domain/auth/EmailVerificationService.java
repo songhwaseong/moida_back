@@ -29,28 +29,34 @@ public class EmailVerificationService {
     private final JavaMailSender mailSender;
 
     @Transactional
-    public void sendCode(String email) {
+    public void sendCode(String email, VerificationPurpose purpose) {
+        requireEmailPurpose(purpose);
         LocalDateTime now = LocalDateTime.now();
         String code = String.format("%06d", RANDOM.nextInt(1_000_000));
 
         EmailVerification verification = repository.findByEmail(email).orElse(null);
         if (verification == null) {
-            repository.save(EmailVerification.issue(email, code, now.plus(CODE_TTL)));
+            repository.save(EmailVerification.issue(email, code, now.plus(CODE_TTL), purpose));
         } else {
             if (verification.getUpdatedAt() != null
                     && Duration.between(verification.getUpdatedAt(), now).compareTo(RESEND_COOLDOWN) < 0) {
                 throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_RESEND_COOLDOWN);
             }
-            verification.renew(code, now.plus(CODE_TTL));
+            verification.renew(code, now.plus(CODE_TTL), purpose);
         }
 
         sendMail(email, code);
     }
 
     @Transactional
-    public void verifyCode(String email, String code) {
+    public void verifyCode(String email, String code, VerificationPurpose purpose) {
+        requireEmailPurpose(purpose);
         EmailVerification verification = repository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND));
+
+        if (!verification.isFor(purpose)) {
+            throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND);
+        }
 
         LocalDateTime now = LocalDateTime.now();
         if (verification.isExpired(now)) {
@@ -66,11 +72,23 @@ public class EmailVerificationService {
         verification.markVerified(now);
     }
 
-    @Transactional(readOnly = true)
-    public boolean isVerified(String email) {
-        return repository.findByEmail(email)
-                .map(v -> v.isVerifiedWithin(LocalDateTime.now(), VERIFIED_TTL))
-                .orElse(false);
+    @Transactional
+    public boolean consumeVerified(String email, VerificationPurpose purpose) {
+        requireEmailPurpose(purpose);
+        EmailVerification verification = repository.findByEmailForUpdate(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND));
+        if (!verification.isFor(purpose)
+                || !verification.isVerifiedWithin(LocalDateTime.now(), VERIFIED_TTL)) {
+            throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND);
+        }
+        verification.consume();
+        return true;
+    }
+
+    private void requireEmailPurpose(VerificationPurpose purpose) {
+        if (purpose == null || !purpose.supportsEmail()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Invalid email verification purpose.");
+        }
     }
 
     private void sendMail(String to, String code) {
