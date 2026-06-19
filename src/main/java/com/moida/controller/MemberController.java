@@ -61,11 +61,15 @@ public class MemberController {
         String ip = ClientIpResolver.resolve(httpRequest);
         String userAgent = httpRequest.getHeader("User-Agent");
 
+        // brute-force 방어: 반복 실패로 일시 잠긴 계정은 비밀번호 검증조차 시도하지 않는다.
+        memberService.assertLoginNotLocked(request.getEmail());
+
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
             );
         } catch (AuthenticationException e) {
+            memberService.recordLoginFailure(request.getEmail());
             adminLoginLogService.recordFailure(request.getEmail(), ip, userAgent);
             throw e;
         }
@@ -75,6 +79,9 @@ public class MemberController {
         if (!member.isActive()) {
             throw new BusinessException(ErrorCode.MEMBER_ACCOUNT_INACTIVE);
         }
+
+        // 비밀번호 검증 성공 → 누적 실패 카운트와 잠금 상태를 초기화한다.
+        memberService.recordLoginSuccess(member.getEmail());
 
         // Passwordless 차단 검사를 성공 로그 기록보다 먼저 수행한다.
         LoginResponse loginResponse = createLoginResponse(member, false);

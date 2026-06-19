@@ -21,6 +21,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,6 +31,17 @@ import java.util.Optional;
 public class MemberService {
 
     private static final String SOCIAL_ACCOUNT_CONFIRMATION_TEXT = "회원탈퇴";
+
+    // 로그인 연속 실패 허용 횟수와, 초과 시 적용할 잠금 시간.
+    // 트레이드오프: 계정(이메일) 단위 잠금이라, 공격자가 피해자 이메일로 일부러 실패시켜
+    // 일시적으로 로그인을 방해하는 계정 잠금형 DoS 가 이론상 가능하다. 그럼에도
+    //   - 잠금은 10분으로 짧고 자동 해제되며(영구 잠금 아님),
+    //   - 정상 사용자는 올바른 비밀번호 입력 시 실패 카운트가 즉시 리셋되고,
+    //   - 근본 차단(IP 단위 분리)은 다중 인스턴스 환경에서 IP 집계 저장소(Redis 등)가
+    //     필요해 현 규모에는 과한 인프라라 도입하지 않는다.
+    // 위 이유로 표준적인 계정 단위 일시 잠금을 채택한다.
+    private static final int LOGIN_MAX_ATTEMPTS = 10;
+    private static final Duration LOGIN_LOCK_DURATION = Duration.ofMinutes(10);
 
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
@@ -42,6 +55,30 @@ public class MemberService {
 
     public Optional<Member> findByEmail(String email) {
         return memberRepository.findByEmail(email);
+    }
+
+    // ===== 로그인 brute-force 방어 =====
+
+    /** 로그인 인증 전에 호출. 반복 실패로 잠긴 계정이면 예외를 던진다. (미존재 이메일은 통과 — 어차피 인증이 실패한다) */
+    public void assertLoginNotLocked(String email) {
+        memberRepository.findByEmail(email).ifPresent(member -> {
+            if (member.isLoginLocked(LocalDateTime.now())) {
+                throw new BusinessException(ErrorCode.LOGIN_TEMPORARILY_LOCKED);
+            }
+        });
+    }
+
+    /** 인증 실패 시 호출. 회원이 존재하면 실패 횟수를 올리고 임계치 도달 시 잠근다. */
+    @Transactional
+    public void recordLoginFailure(String email) {
+        memberRepository.findByEmail(email)
+                .ifPresent(member -> member.recordLoginFailure(LOGIN_MAX_ATTEMPTS, LOGIN_LOCK_DURATION, LocalDateTime.now()));
+    }
+
+    /** 인증 성공 시 호출. 실패 횟수와 잠금 상태를 초기화한다. */
+    @Transactional
+    public void recordLoginSuccess(String email) {
+        memberRepository.findByEmail(email).ifPresent(Member::resetLoginFailure);
     }
 
     public boolean existsByEmail(String email) {

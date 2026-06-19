@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 
 @Entity
@@ -112,6 +113,12 @@ public class Member extends BaseTimeEntity {
 
     @Column(name = "passwordless_enabled", nullable = false)
     private boolean passwordlessEnabled; // true 면 일반 로그인(비번/소셜) 차단, Passwordless 로그인만 허용
+
+    @Column(name = "login_fail_count", nullable = false)
+    private int loginFailCount; // 연속 로그인 실패 횟수 (로그인 성공 시 0 으로 리셋)
+
+    @Column(name = "login_locked_until")
+    private LocalDateTime loginLockedUntil; // 반복 실패로 잠긴 경우 해제 시각 (null 이면 잠금 아님)
 
     @Builder
     private Member(String memberNo, String email, String password, String name, String nickname, String phone,
@@ -246,5 +253,36 @@ public class Member extends BaseTimeEntity {
     /** Passwordless 해지 시 호출 — 일반 로그인이 다시 허용된다. */
     public void disablePasswordless() {
         this.passwordlessEnabled = false;
+    }
+
+    // ===== 로그인 brute-force 방어 =====
+
+    /** 반복된 로그인 실패로 일시 잠긴 상태인지. */
+    public boolean isLoginLocked(LocalDateTime now) {
+        return loginLockedUntil != null && loginLockedUntil.isAfter(now);
+    }
+
+    /** 잠금 해제까지 남은 초. 잠금 상태가 아니면 0. */
+    public long loginLockRemainingSeconds(LocalDateTime now) {
+        if (!isLoginLocked(now)) return 0;
+        return Math.max(0, Duration.between(now, loginLockedUntil).getSeconds());
+    }
+
+    /**
+     * 로그인 실패 1회 기록. 누적 실패가 maxAttempts 에 도달하면 lockDuration 만큼 잠그고
+     * 카운트를 0 으로 리셋한다(잠금이 풀린 뒤 다시 maxAttempts 회의 기회를 준다).
+     */
+    public void recordLoginFailure(int maxAttempts, Duration lockDuration, LocalDateTime now) {
+        this.loginFailCount++;
+        if (this.loginFailCount >= maxAttempts) {
+            this.loginLockedUntil = now.plus(lockDuration);
+            this.loginFailCount = 0;
+        }
+    }
+
+    /** 로그인 성공 시 실패 카운트와 잠금을 모두 해제한다. */
+    public void resetLoginFailure() {
+        this.loginFailCount = 0;
+        this.loginLockedUntil = null;
     }
 }

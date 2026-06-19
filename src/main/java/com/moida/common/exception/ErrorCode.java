@@ -28,6 +28,7 @@ public enum ErrorCode {
     ACCOUNT_DEACTIVATION_BLOCKED(HttpStatus.BAD_REQUEST, "M006", "탈퇴할 수 없는 계정 상태입니다."),
     MEMBER_ACCOUNT_INACTIVE(HttpStatus.FORBIDDEN, "M007", "이용할 수 없는 계정입니다."),
     PASSWORDLESS_LOGIN_REQUIRED(HttpStatus.FORBIDDEN, "M008", "Passwordless가 등록된 계정입니다.\nPasswordless로 로그인해주세요."),
+    LOGIN_TEMPORARILY_LOCKED(HttpStatus.TOO_MANY_REQUESTS, "M009", "로그인 시도가 너무 많아 일시적으로 잠겼습니다. 잠시 후 다시 시도해주세요."),
 
     // Product
     PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "상품을 찾을 수 없습니다."),
@@ -71,6 +72,7 @@ public enum ErrorCode {
     VERIFICATION_TOO_MANY_ATTEMPTS(HttpStatus.BAD_REQUEST, "SMS005", "인증 시도 횟수를 초과했습니다. 인증번호를 다시 요청해주세요."),
     VERIFICATION_RESEND_COOLDOWN(HttpStatus.BAD_REQUEST, "SMS006", "잠시 후 다시 시도해주세요."),
     PHONE_NOT_VERIFIED(HttpStatus.BAD_REQUEST, "SMS007", "휴대폰 인증을 완료해주세요."),
+    VERIFICATION_DAILY_LIMIT(HttpStatus.TOO_MANY_REQUESTS, "SMS008", "오늘 인증번호 발송 한도를 초과했습니다. 내일 다시 시도해주세요."),
 
     // 이메일 인증 관련 에러 코드
     EMAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "EMAIL001", "인증 메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요."),
