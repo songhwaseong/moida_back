@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -24,6 +25,8 @@ public class PhoneVerificationService {
     private static final Duration RESEND_COOLDOWN = Duration.ofSeconds(30);
     /** 코드 입력 최대 시도 횟수. */
     private static final int MAX_ATTEMPTS = 5;
+    /** 번호당 하루 최대 발송 횟수(문자 폭탄/비용 방어). */
+    private static final int MAX_DAILY_SENDS = 5;
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -39,18 +42,26 @@ public class PhoneVerificationService {
         }
 
         LocalDateTime now = LocalDateTime.now();
+        LocalDate today = now.toLocalDate();
         String code = generateCode();
 
         PhoneVerification verification = repository.findByPhone(phone).orElse(null);
         if (verification == null) {
-            repository.save(PhoneVerification.issue(phone, code, now.plus(CODE_TTL)));
+            PhoneVerification created = PhoneVerification.issue(phone, code, now.plus(CODE_TTL));
+            created.recordSend(today);
+            repository.save(created);
         } else {
+            // 하루 총량 초과 차단 (연타 쿨다운만으로는 막지 못하는 누적 발송 폭탄/비용 방어).
+            if (verification.hasReachedDailyLimit(today, MAX_DAILY_SENDS)) {
+                throw new BusinessException(ErrorCode.VERIFICATION_DAILY_LIMIT);
+            }
             // 직전 발송 직후 연타 방지.
             if (verification.getUpdatedAt() != null
                     && Duration.between(verification.getUpdatedAt(), now).compareTo(RESEND_COOLDOWN) < 0) {
                 throw new BusinessException(ErrorCode.VERIFICATION_RESEND_COOLDOWN);
             }
             verification.renew(code, now.plus(CODE_TTL));
+            verification.recordSend(today);
         }
 
         smsService.sendVerificationCode(phone, code);

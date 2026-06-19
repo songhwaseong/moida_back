@@ -14,6 +14,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -49,6 +50,12 @@ public class PhoneVerification extends BaseTimeEntity {
 
     @Column(name = "attempt_count", nullable = false)
     private int attemptCount;
+
+    @Column(name = "daily_send_count", nullable = false)
+    private int dailySendCount;      // 오늘 발송 횟수 (일일 총량 제한용)
+
+    @Column(name = "daily_send_date")
+    private LocalDate dailySendDate; // dailySendCount 가 가리키는 날짜
 
     @Builder
     private PhoneVerification(String phone, String code, LocalDateTime expiresAt) {
@@ -94,5 +101,20 @@ public class PhoneVerification extends BaseTimeEntity {
         return this.verified
                 && this.verifiedAt != null
                 && Duration.between(this.verifiedAt, now).compareTo(window) <= 0;
+    }
+
+    /** 오늘 발송 횟수가 limit 이상이면 true(더 보낼 수 없음). 날짜가 바뀌면 오늘 첫 발송이라 false. */
+    public boolean hasReachedDailyLimit(LocalDate today, int limit) {
+        return today.equals(this.dailySendDate) && this.dailySendCount >= limit;
+    }
+
+    /** 발송 1건 기록. 날짜가 바뀌면 1로 리셋하고, 같은 날이면 누적한다. */
+    public void recordSend(LocalDate today) {
+        if (today.equals(this.dailySendDate)) {
+            this.dailySendCount++;
+        } else {
+            this.dailySendDate = today;
+            this.dailySendCount = 1;
+        }
     }
 }
