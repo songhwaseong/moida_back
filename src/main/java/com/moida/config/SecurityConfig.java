@@ -58,7 +58,6 @@ public class SecurityConfig {
                                 "/api/public/**",
                                 "/error",
                                 "/favicon.ico",
-                                "/h2-console/**",
                                 "/ws/**"
                         ).permitAll()
                         // 내 좋아요 목록은 "본인" 기준으로만 의미가 있으므로 인증 필수.
