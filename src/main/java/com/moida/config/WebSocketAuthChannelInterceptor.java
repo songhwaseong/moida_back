@@ -47,7 +47,10 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         // WebSocket/STOMP 트래픽은 일반 HTTP 보안 필터를 거치지 않으므로 여기서 직접 인증한다.
         if (StompCommand.CONNECT.equals(command)) {
             String token = resolveToken(accessor);
-            if (!StringUtils.hasText(token) || !jwtTokenProvider.validateToken(token)) {
+            // access 토큰만 인증에 사용한다(refresh 토큰으로 WS 를 연결하는 것을 차단).
+            if (!StringUtils.hasText(token)
+                    || !jwtTokenProvider.validateToken(token)
+                    || !jwtTokenProvider.isTokenType(token, JwtTokenProvider.TYPE_ACCESS)) {
                 return message;
             }
             Authentication authentication = jwtTokenProvider.getAuthentication(token);

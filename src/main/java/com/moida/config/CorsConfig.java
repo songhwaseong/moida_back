@@ -23,19 +23,27 @@ public class CorsConfig {
         this.allowedOrigins = allowedOrigins;
     }
 
+    /**
+     * CORS 와 WebSocket 핸드셰이크가 공유하는 허용 origin 목록(정규화 적용).
+     * 비어 있으면 로컬 개발 편의를 위해 dev origin 으로 fallback 한다.
+     * 주의: 운영(prod)에서는 FRONTEND_ORIGIN 을 반드시 설정해야 한다 —
+     *       미설정 시 dev origin 으로 fallback 되어 의도치 않게 localhost 가 허용된다.
+     */
+    public List<String> resolvedAllowedOrigins() {
+        List<String> base = (allowedOrigins == null || allowedOrigins.isEmpty())
+                ? List.of(
+                        "http://localhost:5173",
+                        "http://127.0.0.1:5173",
+                        "http://localhost:3000",
+                        "http://localhost:4173")
+                : allowedOrigins;
+        return normalizeOrigins(base);
+    }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // 비어있으면 기본 dev origin 들로 fallback
-        if (allowedOrigins == null || allowedOrigins.isEmpty()) {
-            allowedOrigins = List.of(
-                    "http://localhost:5173",
-                    "http://127.0.0.1:5173",
-                    "http://localhost:3000",
-                    "http://localhost:4173"
-            );
-        }
-        config.setAllowedOrigins(normalizeOrigins(allowedOrigins));
+        config.setAllowedOrigins(resolvedAllowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization", "Content-Disposition", "X-Instance-Name"));

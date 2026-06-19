@@ -40,7 +40,10 @@ public class JwtHandshakeHandler extends DefaultHandshakeHandler {
     @Override
     protected Principal determineUser(ServerHttpRequest request, WebSocketHandler wsHandler, Map<String, Object> attributes) {
         String token = extractToken(request);
-        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+        // access 토큰만 인증에 사용한다(refresh 토큰으로 WS 를 연결하는 것을 차단).
+        if (StringUtils.hasText(token)
+                && jwtTokenProvider.validateToken(token)
+                && jwtTokenProvider.isTokenType(token, JwtTokenProvider.TYPE_ACCESS)) {
             return jwtTokenProvider.getAuthentication(token);
         }
         // 토큰이 없거나 무효하면 익명 세션으로 둔다(예: 토큰을 안 붙인 다른 용도의 연결).
