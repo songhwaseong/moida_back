@@ -8,6 +8,7 @@ import com.moida.common.request.UpdateProfileRequest;
 import com.moida.common.response.MemberProfileResponse;
 import com.moida.domain.member.MemberService;
 import com.moida.security.CustomUserDetails;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -57,7 +58,7 @@ public class MemberAccountController {
     @PatchMapping("/me/password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestBody ChangePasswordRequest request
+            @Valid @RequestBody ChangePasswordRequest request
     ) {
         memberService.changePassword(userDetails.getMemberId(), request);
         return ResponseEntity.ok(ApiResponse.success(null));
