@@ -99,7 +99,7 @@ public class ProductChatService {
                 .room(room)
                 .sender(sender)
                 .content(content)
-                .type(ChatMessage.MessageType.TEXT)
+                .type(MessageType.TEXT)
                 .build();
         room.updateLastMessage(content);
 

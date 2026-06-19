@@ -37,7 +37,7 @@ public class ProductChatMessage extends BaseTimeEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private ChatMessage.MessageType type;
+    private MessageType type;
 
     @Column(name = "is_deleted", nullable = false)
     private Boolean isDeleted;
@@ -46,11 +46,11 @@ public class ProductChatMessage extends BaseTimeEntity {
     private Integer reportCount;
 
     @Builder
-    private ProductChatMessage(ProductChatRoom room, Member sender, String content, ChatMessage.MessageType type) {
+    private ProductChatMessage(ProductChatRoom room, Member sender, String content, MessageType type) {
         this.room = room;
         this.sender = sender;
         this.content = content;
-        this.type = type == null ? ChatMessage.MessageType.TEXT : type;
+        this.type = type == null ? MessageType.TEXT : type;
         this.isDeleted = false;
         this.reportCount = 0;
     }
